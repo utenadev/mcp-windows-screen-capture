@@ -256,15 +256,41 @@ public class StreamableHttpServer
     
     private object CallTool(JsonElement args)
     {
-        var toolName = args.GetProperty("name").GetString();
+        if (!args.TryGetProperty("name", out var nameElem))
+            return new { error = "Missing 'name' property in tool call arguments" };
+        
+        var toolName = nameElem.GetString();
         var toolArgs = args.TryGetProperty("arguments", out var a) ? a : default;
         
         return toolName switch
         {
-            "list_monitors" => new { content = new object[] { new { type = "text", text = "Monitors listed" } } },
-            "see" => new { content = new object[] { new { type = "image", data = "base64data", mimeType = "image/jpeg" } } },
+            "list_monitors" => ListMonitorsTool(),
+            "see" => SeeTool(toolArgs),
             _ => new { error = $"Unknown tool: {toolName}" }
         };
+    }
+    
+    private object ListMonitorsTool()
+    {
+        try {
+            var monitors = _capture.GetMonitors();
+            return new { content = new object[] { new { type = "text", text = JsonSerializer.Serialize(monitors) } } };
+        } catch (Exception ex) {
+            return new { error = $"Failed to list monitors: {ex.Message}" };
+        }
+    }
+    
+    private object SeeTool(JsonElement args)
+    {
+        try {
+            var mon = args.TryGetProperty("monitor", out var m) ? m.GetUInt32() : 0u;
+            var qual = args.TryGetProperty("quality", out var q) ? q.GetInt32() : 80;
+            var maxW = args.TryGetProperty("maxWidth", out var w) ? w.GetInt32() : 1920;
+            var data = _capture.CaptureSingle(mon, maxW, qual);
+            return new { content = new object[] { new { type = "image", data, mimeType = "image/jpeg" }, new { type = "text", text = $"Captured monitor {mon} at {DateTime.Now:HH:mm:ss}" } } };
+        } catch (Exception ex) {
+            return new { error = $"Failed to capture screen: {ex.Message}" };
+        }
     }
     
     private async Task SendSseEvent(HttpResponse response, string eventId, string data)
