@@ -26,6 +26,13 @@ dotnet publish -c Release -r win-x64 --self-contained false /p:PublishSingleFile
 - `--port`: Port number (default: 5000)
 - `--desktopNum`: Default monitor index (0=primary, 1=secondary, etc.)
 
+## Dual Transport Support
+
+This server supports both transport protocols:
+
+- **Streamable HTTP** (new standard): `/mcp` endpoint - For Claude Code, Gemini CLI, OpenCode
+- **Legacy SSE** (backward compatibility): `/sse` endpoint - For QwenCode and older clients
+
 ## Claude Code Configuration
 
 ### Windows (Native)
