@@ -96,13 +96,33 @@ public class StreamableHttpServer
     
     private async Task HandlePostRequest(HttpContext ctx, string sessionId)
     {
-        var acceptHeader = ctx.Request.Headers["Accept"].ToString();
-        
-        // Read JSON-RPC message
-        var message = await JsonSerializer.DeserializeAsync<JsonElement>(ctx.Request.Body, _json);
-        var jsonrpc = message.GetProperty("jsonrpc").GetString();
-        var msgMethod = message.TryGetProperty("method", out var m) ? m.GetString() : null;
-        var msgId = message.TryGetProperty("id", out var id) ? id.GetInt64() : (long?)null;
+        try
+        {
+            var acceptHeader = ctx.Request.Headers["Accept"].ToString();
+            
+            // Read JSON-RPC message
+            JsonElement message;
+            try
+            {
+                message = await JsonSerializer.DeserializeAsync<JsonElement>(ctx.Request.Body, _json);
+            }
+            catch (Exception ex)
+            {
+                ctx.Response.StatusCode = 400;
+                await ctx.Response.WriteAsync(JsonSerializer.Serialize(new { error = $"Invalid JSON: {ex.Message}" }, _json));
+                return;
+            }
+            
+            // Safely get properties
+            if (!message.TryGetProperty("jsonrpc", out var jsonrpcElem))
+            {
+                ctx.Response.StatusCode = 400;
+                await ctx.Response.WriteAsync(JsonSerializer.Serialize(new { error = "Missing 'jsonrpc' field" }, _json));
+                return;
+            }
+            var jsonrpc = jsonrpcElem.GetString();
+            var msgMethod = message.TryGetProperty("method", out var m) ? m.GetString() : null;
+            var msgId = message.TryGetProperty("id", out var id) ? id.GetInt64() : (long?)null;
         
         // Handle initialization
         if (msgMethod == "initialize")
@@ -183,6 +203,14 @@ public class StreamableHttpServer
                 result
             };
             await ctx.Response.WriteAsync(JsonSerializer.Serialize(response, _json));
+        }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Streamable HTTP] Error: {ex.Message}");
+            ctx.Response.StatusCode = 500;
+            ctx.Response.ContentType = "application/json";
+            await ctx.Response.WriteAsync(JsonSerializer.Serialize(new { error = $"Internal server error: {ex.Message}" }, _json));
         }
     }
     
