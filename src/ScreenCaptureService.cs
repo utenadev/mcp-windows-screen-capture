@@ -134,6 +134,6 @@ public class StreamSession {
     public Channel<string> Channel { get; }
     
     public StreamSession() {
-        Channel = Channel.CreateUnbounded<string>();
+        Channel = System.Threading.Channels.Channel.CreateUnbounded<string>();
     }
 }
