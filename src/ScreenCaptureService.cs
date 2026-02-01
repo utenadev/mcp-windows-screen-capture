@@ -100,5 +100,9 @@ public class StreamSession {
     public int Quality;
     public int MaxW;
     public CancellationTokenSource Cts = new();
-    public Channel<string> Channel { get; } = Channel.CreateUnbounded<string>();
+    public Channel<string> Channel { get; }
+    
+    public StreamSession() {
+        Channel = Channel.CreateUnbounded<string>();
+    }
 }
