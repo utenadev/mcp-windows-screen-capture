@@ -37,11 +37,28 @@ rootCmd.SetHandler((ip, port, desktop) => {
     var mcp = new McpServer(captureService);
     mcp.Configure(app);
     
+    // Register cleanup on application shutdown
+    var lifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
+    lifetime.ApplicationStopping.Register(() => {
+        Console.WriteLine("[Server] Shutting down...");
+        captureService.StopAllStreams();
+        mcp.StopAllClients();
+        Console.WriteLine("[Server] Cleanup completed");
+    });
+    
+    // Handle Ctrl+C gracefully
+    Console.CancelKeyPress += (sender, e) => {
+        e.Cancel = true;
+        Console.WriteLine("[Server] Ctrl+C pressed, initiating shutdown...");
+        lifetime.StopApplication();
+    };
+    
     Console.WriteLine($"[Server] Started on http://{ip}:{port}");
     Console.WriteLine($"[Server] Default monitor: {desktop}");
     if (ip == "0.0.0.0") {
         Console.WriteLine($"[Server] WSL2 URL: http://$(ip route | grep default | awk '{{print $3}}'):{port}/sse");
     }
+    Console.WriteLine("[Server] Press Ctrl+C to stop");
     
     app.Run();
 }, ipOption, portOption, desktopOption);
@@ -54,6 +71,11 @@ public class McpServer {
     private readonly JsonSerializerOptions _json = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
     public McpServer(ScreenCaptureService capture) => _capture = capture;
+
+    public void StopAllClients() {
+        Console.WriteLine($"[MCP] Disconnecting {_clients.Count} clients...");
+        _clients.Clear();
+    }
 
     public void Configure(WebApplication app) {
         app.MapGet("/sse", async (HttpContext ctx) => {
