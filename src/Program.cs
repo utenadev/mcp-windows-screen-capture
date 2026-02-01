@@ -117,7 +117,7 @@ public class McpServer {
         });
 
         app.MapGet("/stream/{id}", async (string id, HttpContext ctx) => {
-            if (!_capture.TryGetSession(id, out var session)) return Results.NotFound();
+            if (!_capture.TryGetSession(id, out var session) || session == null) return Results.NotFound();
             
             ctx.Response.ContentType = "text/event-stream";
             await foreach (var img in session.Channel.Reader.ReadAllAsync(ctx.RequestAborted)) {

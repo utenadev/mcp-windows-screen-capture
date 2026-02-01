@@ -18,6 +18,8 @@ public class ScreenCaptureService {
     public List<MonitorInfo> GetMonitors() => _monitors;
 
     public string CaptureSingle(uint idx, int maxW, int quality) {
+        if (idx >= _monitors.Count)
+            throw new ArgumentOutOfRangeException(nameof(idx), $"Monitor index {idx} is out of range. Available: 0-{_monitors.Count - 1}");
         var mon = _monitors[(int)idx];
         using var bmp = new Bitmap(mon.W, mon.H);
         using (var g = Graphics.FromImage(bmp)) {
@@ -38,7 +40,7 @@ public class ScreenCaptureService {
         if (_sessions.Remove(id, out var s)) s.Cts.Cancel();
     }
 
-    public bool TryGetSession(string id, out StreamSession s) => _sessions.TryGetValue(id, out s!);
+    public bool TryGetSession(string id, out StreamSession? s) => _sessions.TryGetValue(id, out s);
 
     public void StopAllStreams() {
         Console.WriteLine($"[Capture] Stopping all {_sessions.Count} streams...");

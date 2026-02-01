@@ -35,7 +35,7 @@ dotnet test --verbosity normal
 dotnet test --no-build
 ```
 
-**Note:** This project currently has no test projects. When adding tests, use `dotnet new xunit` or `dotnet new nunit` in a `tests/` directory.
+**Note:** Test project exists at `tests/WindowsScreenCapture.Tests/`. To run tests: `dotnet test`
 
 ## Code Style Guidelines
 
