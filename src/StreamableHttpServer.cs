@@ -249,6 +249,38 @@ public class StreamableHttpServer
                             maxWidth = new { type = "integer", defaultValue = 1920 }
                         }
                     }
+                },
+                new {
+                    name = "list_windows",
+                    description = "List all visible Windows applications",
+                    inputSchema = new { type = "object", properties = new { } }
+                },
+                new {
+                    name = "capture_window",
+                    description = "Capture a specific window by HWND",
+                    inputSchema = new {
+                        type = "object",
+                        properties = new {
+                            hwnd = new { type = "integer" },
+                            quality = new { type = "integer", defaultValue = 80 },
+                            maxWidth = new { type = "integer", defaultValue = 1920 }
+                        }
+                    }
+                },
+                new {
+                    name = "capture_region",
+                    description = "Capture an arbitrary screen region",
+                    inputSchema = new {
+                        type = "object",
+                        properties = new {
+                            x = new { type = "integer" },
+                            y = new { type = "integer" },
+                            w = new { type = "integer" },
+                            h = new { type = "integer" },
+                            quality = new { type = "integer", defaultValue = 80 },
+                            maxWidth = new { type = "integer", defaultValue = 1920 }
+                        }
+                    }
                 }
             }
         };
@@ -266,6 +298,9 @@ public class StreamableHttpServer
         {
             "list_monitors" => ListMonitorsTool(),
             "see" => SeeTool(toolArgs),
+            "list_windows" => ListWindowsTool(),
+            "capture_window" => CaptureWindowTool(toolArgs),
+            "capture_region" => CaptureRegionTool(toolArgs),
             _ => new { error = $"Unknown tool: {toolName}" }
         };
     }
@@ -292,7 +327,46 @@ public class StreamableHttpServer
             return new { error = $"Failed to capture screen: {ex.Message}" };
         }
     }
-    
+
+    private object ListWindowsTool()
+    {
+        try {
+            var windows = _capture.GetWindows();
+            return new { content = new object[] { new { type = "text", text = JsonSerializer.Serialize(windows) } } };
+        } catch (Exception ex) {
+            return new { error = $"Failed to list windows: {ex.Message}" };
+        }
+    }
+
+    private object CaptureWindowTool(JsonElement args)
+    {
+        try {
+            var hwnd = args.TryGetProperty("hwnd", out var h) ? h.GetInt64() : 0L;
+            var qual = args.TryGetProperty("quality", out var q) ? q.GetInt32() : 80;
+            var maxW = args.TryGetProperty("maxWidth", out var w) ? w.GetInt32() : 1920;
+            var data = _capture.CaptureWindow(hwnd, maxW, qual);
+            return new { content = new object[] { new { type = "image", data, mimeType = "image/jpeg" }, new { type = "text", text = $"Captured window {hwnd} at {DateTime.Now:HH:mm:ss}" } } };
+        } catch (Exception ex) {
+            return new { error = $"Failed to capture window: {ex.Message}" };
+        }
+    }
+
+    private object CaptureRegionTool(JsonElement args)
+    {
+        try {
+            var x = args.TryGetProperty("x", out var xElem) ? xElem.GetInt32() : 0;
+            var y = args.TryGetProperty("y", out var yElem) ? yElem.GetInt32() : 0;
+            var w = args.TryGetProperty("w", out var wElem) ? wElem.GetInt32() : 0;
+            var h = args.TryGetProperty("h", out var hElem) ? hElem.GetInt32() : 0;
+            var qual = args.TryGetProperty("quality", out var q) ? q.GetInt32() : 80;
+            var maxW = args.TryGetProperty("maxWidth", out var maxElem) ? maxElem.GetInt32() : 1920;
+            var data = _capture.CaptureRegion(x, y, w, h, maxW, qual);
+            return new { content = new object[] { new { type = "image", data, mimeType = "image/jpeg" }, new { type = "text", text = $"Captured region ({x},{y},{w},{h}) at {DateTime.Now:HH:mm:ss}" } } };
+        } catch (Exception ex) {
+            return new { error = $"Failed to capture region: {ex.Message}" };
+        }
+    }
+
     private async Task SendSseEvent(HttpResponse response, string eventId, string data)
     {
         await response.WriteAsync($"id: {eventId}\n");
