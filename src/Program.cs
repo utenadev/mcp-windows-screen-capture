@@ -34,14 +34,41 @@ rootCmd.SetHandler((ip, port, desktop) => {
     var app = builder.Build();
     var captureService = app.Services.GetRequiredService<ScreenCaptureService>();
     captureService.InitializeMonitors();
+    
+    // Legacy SSE transport (for backward compatibility with QwenCode)
     var mcp = new McpServer(captureService);
     mcp.Configure(app);
     
+    // New Streamable HTTP transport (for Claude Code, Gemini CLI, OpenCode)
+    var sessionManager = new McpSessionManager();
+    var streamableHttp = new StreamableHttpServer(captureService, sessionManager);
+    streamableHttp.Configure(app);
+    
+    // Register cleanup on application shutdown
+    var lifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
+    lifetime.ApplicationStopping.Register(() => {
+        Console.WriteLine("[Server] Shutting down...");
+        captureService.StopAllStreams();
+        mcp.StopAllClients();
+        Console.WriteLine("[Server] Cleanup completed");
+    });
+    
+    // Handle Ctrl+C gracefully
+    Console.CancelKeyPress += (sender, e) => {
+        e.Cancel = true;
+        Console.WriteLine("[Server] Ctrl+C pressed, initiating shutdown...");
+        lifetime.StopApplication();
+    };
+    
     Console.WriteLine($"[Server] Started on http://{ip}:{port}");
     Console.WriteLine($"[Server] Default monitor: {desktop}");
+    Console.WriteLine($"[Server] Legacy SSE endpoint: http://{ip}:{port}/sse (for QwenCode)");
+    Console.WriteLine($"[Server] Streamable HTTP endpoint: http://{ip}:{port}/mcp (for Claude Code, Gemini CLI, OpenCode)");
     if (ip == "0.0.0.0") {
-        Console.WriteLine($"[Server] WSL2 URL: http://$(ip route | grep default | awk '{{print $3}}'):{port}/sse");
+        Console.WriteLine($"[Server] WSL2 SSE URL: http://$(ip route | grep default | awk '{{print $3}}'):{port}/sse");
+        Console.WriteLine($"[Server] WSL2 HTTP URL: http://$(ip route | grep default | awk '{{print $3}}'):{port}/mcp");
     }
+    Console.WriteLine("[Server] Press Ctrl+C to stop");
     
     app.Run();
 }, ipOption, portOption, desktopOption);
@@ -54,6 +81,11 @@ public class McpServer {
     private readonly JsonSerializerOptions _json = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
     public McpServer(ScreenCaptureService capture) => _capture = capture;
+
+    public void StopAllClients() {
+        Console.WriteLine($"[MCP] Disconnecting {_clients.Count} clients...");
+        _clients.Clear();
+    }
 
     public void Configure(WebApplication app) {
         app.MapGet("/sse", async (HttpContext ctx) => {
