@@ -1,0 +1,99 @@
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.Runtime.InteropServices;
+using System.Threading.Channels;
+
+public class ScreenCaptureService {
+    private readonly uint _defaultMon;
+    private readonly Dictionary<string, StreamSession> _sessions = new();
+    private List<MonitorInfo> _monitors = new();
+
+    public ScreenCaptureService(uint defaultMon) => _defaultMon = defaultMon;
+
+    public void InitializeMonitors() {
+        _monitors = EnumMonitors();
+        Console.WriteLine($"[Capture] Found {_monitors.Count} monitors");
+    }
+
+    public List<MonitorInfo> GetMonitors() => _monitors;
+
+    public string CaptureSingle(uint idx, int maxW, int quality) {
+        var mon = _monitors[(int)idx];
+        using var bmp = new Bitmap(mon.W, mon.H);
+        using (var g = Graphics.FromImage(bmp)) {
+            g.CopyFromScreen(mon.X, mon.Y, 0, 0, new Size(mon.W, mon.H));
+        }
+        return ToJpegBase64(bmp, maxW, quality);
+    }
+
+    public string StartStream(uint idx, int interval, int quality, int maxW) {
+        var id = Guid.NewGuid().ToString();
+        var sess = new StreamSession { Id = id, MonIdx = idx, Interval = interval, Quality = quality, MaxW = maxW };
+        _sessions[id] = sess;
+        _ = StreamLoop(sess);
+        return id;
+    }
+
+    public void StopStream(string id) {
+        if (_sessions.Remove(id, out var s)) s.Cts.Cancel();
+    }
+
+    public bool TryGetSession(string id, out StreamSession s) => _sessions.TryGetValue(id, out s!);
+
+    private async Task StreamLoop(StreamSession s) {
+        try {
+            while (!s.Cts.Token.IsCancellationRequested) {
+                var start = DateTime.UtcNow;
+                var img = CaptureSingle(s.MonIdx, s.MaxW, s.Quality);
+                await s.Channel.Writer.WriteAsync(img, s.Cts.Token);
+                var delay = s.Interval - (int)(DateTime.UtcNow - start).TotalMilliseconds;
+                if (delay > 0) await Task.Delay(delay, s.Cts.Token);
+            }
+        } catch (OperationCanceledException) { } finally { s.Channel.Writer.Complete(); }
+    }
+
+    private string ToJpegBase64(Bitmap src, int maxW, int q) {
+        using var ms = new MemoryStream();
+        var target = src.Width > maxW ? new Bitmap(src, new Size(maxW, (int)(src.Height * ((double)maxW / src.Width)))) : src;
+        try {
+            var codec = ImageCodecInfo.GetImageEncoders().First(c => c.FormatID == ImageFormat.Jpeg.Guid);
+            var p = new EncoderParameters(1);
+            p.Param[0] = new EncoderParameter(Encoder.Quality, q);
+            target.Save(ms, codec, p);
+            return Convert.ToBase64String(ms.ToArray());
+        } finally { if (target != src) target.Dispose(); }
+    }
+
+    private static List<MonitorInfo> EnumMonitors() {
+        var list = new List<MonitorInfo>();
+        uint i = 0;
+        EnumDisplayMonitors(IntPtr.Zero, IntPtr.Zero, (h, _, _, _) => {
+            var mi = new MONITORINFOEX { cbSize = Marshal.SizeOf<MONITORINFOEX>() };
+            if (GetMonitorInfo(h, ref mi)) {
+                var w = mi.rcMonitor.Right - mi.rcMonitor.Left;
+                var hgt = mi.rcMonitor.Bottom - mi.rcMonitor.Top;
+                list.Add(new MonitorInfo(i, mi.szDevice, w, hgt, mi.rcMonitor.Left, mi.rcMonitor.Top));
+                i++;
+            }
+            return true;
+        }, IntPtr.Zero);
+        return list;
+    }
+
+    [DllImport("user32.dll")] static extern bool EnumDisplayMonitors(IntPtr hdc, IntPtr rc, EnumMonDelegate del, IntPtr dw);
+    [DllImport("user32.dll", CharSet = CharSet.Auto)] static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFOEX lpmi);
+    delegate bool EnumMonDelegate(IntPtr h, IntPtr hdc, ref RECT rc, IntPtr d);
+    [StructLayout(LayoutKind.Sequential)] struct RECT { public int Left, Top, Right, Bottom; }
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)] struct MONITORINFOEX { public int cbSize; public RECT rcMonitor; public RECT rcWork; public uint dwFlags; [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)] public string szDevice; }
+}
+
+public record MonitorInfo(uint Idx, string Name, int W, int H, int X, int Y);
+public class StreamSession {
+    public string Id = "";
+    public uint MonIdx;
+    public int Interval;
+    public int Quality;
+    public int MaxW;
+    public CancellationTokenSource Cts = new();
+    public Channel<string> Channel = Channel.CreateUnbounded<string>();
+}
