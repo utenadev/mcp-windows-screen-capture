@@ -56,6 +56,23 @@ dotnet publish -c Release -r win-x64 --self-contained false /p:PublishSingleFile
 }
 ```
 
+## Available MCP Tools
+
+| Tool | Description |
+|------|-------------|
+| `list_monitors` | List all available monitors/displays |
+| `see` | Capture a screenshot of the specified monitor (like taking a photo with your eyes) |
+| `start_watching` | Start a continuous screen capture stream (like watching a live video) |
+| `stop_watching` | Stop a running screen capture stream by session ID |
+
+### Tool Examples
+
+Ask Claude:
+- "See what's on my screen"
+- "Look at monitor 1"
+- "Start watching my screen and tell me when something changes"
+- "List all my monitors"
+
 ## First Run (Firewall)
 Run as Administrator in PowerShell:
 ```powershell
