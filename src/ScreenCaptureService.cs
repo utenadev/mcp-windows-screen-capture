@@ -165,8 +165,11 @@ public class ScreenCaptureService {
         if (w <= 0 || h <= 0)
             throw new ArgumentException($"Window {hwnd} has invalid dimensions: {w}x{h}");
             
-        using var bmp = new Bitmap(w, h);
+        using var bmp = new Bitmap(w, h, PixelFormat.Format32bppArgb);
         using (var g = Graphics.FromImage(bmp)) {
+            g.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighQuality;
+            g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
             var hdc = g.GetHdc();
             try {
                 PrintWindow(hWnd, hdc, 0);
@@ -181,9 +184,12 @@ public class ScreenCaptureService {
         if (w <= 0 || h <= 0)
             throw new ArgumentException($"Invalid region dimensions: {w}x{h}");
             
-        using var bmp = new Bitmap(w, h);
+        using var bmp = new Bitmap(w, h, PixelFormat.Format32bppArgb);
         using (var g = Graphics.FromImage(bmp)) {
-            g.CopyFromScreen(x, y, 0, 0, new Size(w, h));
+            g.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighQuality;
+            g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
+            g.CopyFromScreen(x, y, 0, 0, new Size(w, h), CopyPixelOperation.SourceCopy);
         }
         return ToJpegBase64(bmp, maxW, quality);
     }
