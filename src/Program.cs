@@ -2,6 +2,7 @@ using System.CommandLine;
 using System.Net;
 using System.Runtime.InteropServices;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Channels;
 
 [DllImport("user32.dll")] static extern bool SetProcessDPIAware();
