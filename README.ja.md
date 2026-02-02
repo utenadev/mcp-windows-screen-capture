@@ -1,8 +1,8 @@
 # MCP Windows Screen Capture Server
 
-Windows 11 向けのスクリーンキャプチャ MCP サーバー。`--ip_addr`、`--port`、`--desktopNum` オプションに対応。
+Windows 11 向けのスクリーンキャプチャ MCP サーバー。stdio トランスポートをデフォルトとし、後方互換性のためオプションで HTTP モードをサポートしています。
 
-> **⚠️ 実装メモ:** これは **GDI+ 版** です。Direct3D なしで確実に動作します。高性能な GPU キャプチャが必要な場合は、Direct3D/Windows Graphics Capture を自分で実装してください。この GDI+ 版は AI アシスタント用途には十分な速度です。
+> **⚠️ 実装メモ:** これは **GDI+ 版** です。Direct3D なしで確実に動作します。高性能な GPU キャプチャが必要な場合は、Direct3D/Windows Graphics Capture を自分で実装してください。この GDI+ 版は AI アシスタント用途には十分です。
 
 ## 動作要件
 - Windows 11（または Windows 10 1809 以降）
@@ -12,50 +12,53 @@ Windows 11 向けのスクリーンキャプチャ MCP サーバー。`--ip_addr
 
 ```bash
 # ビルド
-dotnet build -c Release
+dotnet build src/WindowsScreenCaptureServer.csproj -c Release
 
-# CLI オプション付きで実行（WSL2 接続には必須）
-dotnet run -- --ip_addr 0.0.0.0 --port 5000 --desktopNum 0
+# stdio モードで実行（デフォルト - 推奨）
+dotnet run --project src/WindowsScreenCaptureServer.csproj
+
+# HTTP モードで実行（レガシークライアント向け）
+dotnet run --project src/WindowsScreenCaptureServer.csproj -- --http --ip_addr 127.0.0.1 --port 5000
 
 # 単一ファイル公開
-dotnet publish -c Release -r win-x64 --self-contained false /p:PublishSingleFile=true
+dotnet publish src/WindowsScreenCaptureServer.csproj -c Release -r win-x64 --self-contained false /p:PublishSingleFile=true
 ```
 
 ## CLI オプション
-- `--ip_addr`: バインドする IP（WSL2 接続には `0.0.0.0`、ローカルのみは `127.0.0.1`）
+
+### デフォルトモード（stdio）
+
+フラグは不要です - stdio ベースの MCP サーバーとして実行されます：
+
+```bash
+dotnet run --project src/WindowsScreenCaptureServer.csproj
+```
+
+### HTTP モード（オプション）
+
+レガシークライアントや特殊なユースケースのために `--http` フラグで有効化：
+- `--http`: HTTP モードを有効化（stdio がデフォルト）
+- `--ip_addr`: バインドする IP（デフォルト: `127.0.0.1`、外部アクセスには `0.0.0.0` を使用）
 - `--port`: ポート番号（デフォルト: 5000）
 - `--desktopNum`: デフォルトモニター番号（0=プライマリ、1=セカンダリなど）
 
-## デュアルトランスポート対応
+## トランスポートモード
 
-このサーバーは最大の互換性のため、両方のトランスポートプロトコルをサポートしています：
+> **注:** HTTP モードは後方互換性と高度なユースケースのみを目的としています。stdio トランスポートはデフォルトであり、すべてのクライアントに推奨されるモードです。
 
-| トランスポート | エンドポイント | ステータス | 用途 |
-|-----------|----------|--------|----------|
-| **Streamable HTTP** | `/mcp` | ✅ 新標準 | Claude Code, Gemini CLI, OpenCode |
-| **レガシー SSE** | `/sse` | ⚠️ 非推奨 | QwenCode, 古いクライアント |
+このサーバーは 2 つのトランスポートモードをサポートしています：
 
-### トランスポート選択フロー
+| モード | デフォルト | 用途 |
+|--------|-----------|------|
+| **stdio** | ✅ はい | すべてのクライアントに推奨 - ローカル、安全、ネットワーク暴露なし |
+| **HTTP** | ❌ いいえ | レガシーサポート、`--http` フラグが必要 |
 
-```mermaid
-flowchart TD
-    A[クライアント接続] --> B{クライアントの種類?}
-    B -->|Claude Code / Gemini CLI / OpenCode| C[/mcp<br/>Streamable HTTP/]
-    B -->|QwenCode / レガシー| D[/sse<br/>レガシー SSE/]
-    C --> E[セッション管理<br/>MCP-Session-Id ヘッダー]
-    D --> F[クライアント ID クエリパラメータ]
-    E --> G[ツール実行]
-    F --> G
-```
+### HTTP エンドポイント（--http 有効時）
 
-### AI エージェント設定マトリクス
-
-| AI エージェント | トランスポート | 設定例 |
-|----------|-----------|----------------|
-| **Claude Code** | Streamable HTTP | `url: "http://127.0.0.1:5000/mcp"` |
-| **Gemini CLI** | Streamable HTTP | `url: "http://127.0.0.1:5000/mcp"` |
-| **OpenCode** | Streamable HTTP | `url: "http://127.0.0.1:5000/mcp"` |
-| **QwenCode** | レガシー SSE | `url: "http://127.0.0.1:5000/sse"` |
+| エンドポイント | トランスポート | ステータス |
+|-----------|-----------|--------|
+| `/mcp` | Streamable HTTP | アクティブ |
+| `/sse` | レガシー SSE | 非推奨 |
 
 ## 利用可能な MCP ツール
 
@@ -99,6 +102,17 @@ Claude に以下のように尋ねてみてください:
 {"method": "capture_region", "arguments": {"x": 100, "y": 100, "w": 800, "h": 600}}
 ```
 
+## 制約と考慮事項
+
+### ウィンドウキャプチャの制約
+- **最小化されたウィンドウ**: 最小化されたウィンドウは正しくキャプチャされないか、古い内容が表示される場合があります。キャプチャ前に対象のウィンドウが表示されていることを確認してください。
+- **GPUアクセラレーションアプリ**: PW_RENDERFULLCONTENT フラグ（Windows 8.1+）を使用して、Chrome、Electron、WPF アプリをキャプチャします。これは静止画スクリーンショットには適していますが、一部のアプリケーションでは制限がある場合があります。
+
+### パフォーマンス考慮事項
+- **静止画スクリーンショット**: ✅ 完全にサポートされています - 単一のスクリーンショットや定期的なキャプチャ（数秒ごと）が可能です
+- **高頻度動画キャプチャ**: ⚠️ 推奨されません - CPU 負荷が高くなります。動画やストリーミングのユースケースでは、代わりに Desktop Duplication API（DirectX ベース）を検討してください。
+- **最適なユースケース**: 定期的なモニタリング、ドキュメント用スクリーンショット、自動化テスト
+
 ## アーキテクチャ & 実装
 
 ### リファクタリング履歴
@@ -114,8 +128,9 @@ Claude に以下のように尋ねてみてください:
 
 ### 主な機能
 
-- **デュアルトランスポート対応**: Streamable HTTP（新）と SSE（レガシー）の両方に対応し、最大のクライアント互換性を実現
-- **セッション管理**: MCP-Session-Id ヘッダーによる自動クリーンアップ
+- **stdio トランスポート**: デフォルトのローカル専用モード - 安全、ネットワーク暴露なし
+- **オプションの HTTP モード**: 後方互換性のための Streamable HTTP とレガシー SSE
+- **セッション管理**: MCP-Session-Id ヘッダーによる自動クリーンアップ（HTTP モード）
 - **ウィンドウ列挙**: EnumWindows API で表示中のアプリケーションを一覧表示
 - **領域キャプチャ**: CopyFromScreen を使用した任意の画面領域キャプチャ
 - **グレースフルシャットダウン**: Ctrl+C やプロセス終了時の適切なクリーンアップ
@@ -124,7 +139,36 @@ Claude に以下のように尋ねてみてください:
 
 ## クライアント設定例
 
-### Streamable HTTP（Claude Code / Gemini CLI / OpenCode）
+### stdio モード（デフォルト / 推奨）
+
+すべてのモダンな MCP クライアントは stdio トランスポートをサポートしています。これは **安全でローカル専用** のモードで、ネットワーク暴露がありません。
+
+```json
+{
+  "mcpServers": {
+    "windows-capture": {
+      "command": "dotnet",
+      "args": ["run", "--project", "C:\\path\\to\\WindowsScreenCaptureServer.csproj"]
+    }
+  }
+}
+```
+
+または、公開済み実行ファイルの場合：
+
+```json
+{
+  "mcpServers": {
+    "windows-capture": {
+      "command": "C:\\path\\to\\WindowsScreenCaptureServer.exe"
+    }
+  }
+}
+```
+
+### HTTP モード（オプション / レガシー）
+
+stdio をサポートしないクライアントでのみ必要です。サーバーを `--http` フラグ付きで実行する必要があります。
 
 ```json
 {
@@ -137,60 +181,32 @@ Claude に以下のように尋ねてみてください:
 }
 ```
 
-### レガシー SSE（QwenCode）
-
-```json
-{
-  "mcpServers": {
-    "windows-capture": {
-      "url": "http://127.0.0.1:5000/sse",
-      "transport": "sse"
-    }
-  }
-}
-```
-
-### WSL2（Windows ホスト経由）
-
-```json
-{
-  "mcpServers": {
-    "windows-capture": {
-      "command": "bash",
-      "args": [
-        "-c",
-        "WIN_IP=$(ip route | grep default | awk '{print $3}'); curl -N http://${WIN_IP}:5000/sse"
-      ]
-    }
-  }
-}
-```
-
-## 初回セットアップ（ファイアウォール）
-
-PowerShell（管理者権限）で実行:
-
-```powershell
-# WSL2 サブネットのみ許可（セキュア）
-netsh advfirewall firewall add rule name="MCP Screen Capture" dir=in action=allow protocol=TCP localport=5000 remoteip=172.16.0.0/12
-
-# 全ネットワークから許可（注意して使用）
-netsh advfirewall firewall add rule name="MCP Screen Capture" dir=in action=allow protocol=TCP localport=5000
-```
-
 ## セキュリティ考慮事項
 
-- **Origin 検証**: Streamable HTTP エンドポイントは Origin ヘッダーを検証し、DNS リバインディング攻撃を防止
+- **stdio モード**: ネットワーク暴露なし - 完全にローカルで安全
+- **HTTP モード**: 必要な場合のみ有効化してください。デフォルトで localhost にバインドされます
+- **Origin 検証**: HTTP エンドポイントは Origin ヘッダーを検証し、DNS リバインディング攻撃を防止
 - **セッション分離**: 各クライアントは一意のセッション ID を取得し、自動的に期限切れ（1時間）
-- **ローカルホストバインディング**: デフォルトで 127.0.0.1 にバインドし、外部アクセスを防止
-- **WSL2 サポート**: WSL2 アクセスが必要な場合のみ `0.0.0.0` を使用
+
+## 初回実行（HTTP モードのみ）
+
+HTTP モードで外部アクセスを使用する場合は、PowerShell（管理者権限）で実行してください：
+
+```powershell
+# ローカルホストのみ（デフォルト - ファイアウォールルール不要）
+# アクション不要
+
+# 外部アクセス（推奨されません）
+netsh advfirewall firewall add rule name="MCP Screen Capture" dir=in action=allow protocol=TCP localport=5000
+```
 
 ## トラブルシューティング
 
 | 問題 | 解決方法 |
 |-------|----------|
-| 接続が拒否される | ファイアウォールルールを確認し、サーバーが実行中であることを確認 |
-| /mcp で 404 エラー | デュアルトランスポート対応の最新ビルドを使用していることを確認 |
+| stdio モードが動作しない | MCP クライアント設定で実行可能ファイルのパスが正しいことを確認 |
+| 接続が拒否される（HTTP モード） | ファイアウォールルールを確認し、サーバーが `--http` フラグ付きで実行されていることを確認 |
+| /mcp で 404 エラー | 最新のビルドを使用し、サーバーが `--http` フラグ付きで実行されていることを確認 |
 | 黒い画面が表示される | 管理者権限で実行 |
 | ウィンドウが見つからない | ウィンドウが表示されていることを確認（システムトレイに最小化されていない） |
 

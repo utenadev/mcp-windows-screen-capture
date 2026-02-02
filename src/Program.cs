@@ -21,37 +21,64 @@ var desktopOption = new Option<uint>(
     description: "Default monitor index (0=primary)",
     getDefaultValue: () => 0u);
 
+var httpOption = new Option<bool>(
+    name: "--http",
+    description: "Run in HTTP mode (requires ip/port options). Default is stdio mode.",
+    getDefaultValue: () => false);
+
 var rootCmd = new RootCommand("MCP Windows Screen Capture Server");
 rootCmd.AddOption(ipOption);
 rootCmd.AddOption(portOption);
 rootCmd.AddOption(desktopOption);
+rootCmd.AddOption(httpOption);
 
-rootCmd.SetHandler((ip, port, desktop) => {
+rootCmd.SetHandler((ip, port, desktop, useHttp) => {
     SetProcessDPIAware();
+    
+    var captureService = new ScreenCaptureService(desktop);
+    captureService.InitializeMonitors();
+    
+    if (useHttp) {
+        RunHttpMode(ip, port, desktop, captureService);
+    } else {
+        RunStdioMode(captureService);
+    }
+}, ipOption, portOption, desktopOption, httpOption);
+
+await rootCmd.InvokeAsync(args);
+
+void RunStdioMode(ScreenCaptureService captureService) {
+    Console.Error.WriteLine("[Stdio] MCP Windows Screen Capture Server started in stdio mode");
+    Console.Error.WriteLine($"[Stdio] Default monitor: {captureService.GetMonitors().FirstOrDefault()?.Idx ?? 0}");
+    
+    var server = new StdioMcpServer(captureService);
+    server.Run().Wait();
+}
+
+void RunHttpMode(string ip, int port, uint desktop, ScreenCaptureService captureService) {
     var builder = WebApplication.CreateBuilder();
-    builder.Services.AddSingleton<ScreenCaptureService>(sp => new ScreenCaptureService(desktop));
+    builder.Services.AddSingleton<ScreenCaptureService>(sp => captureService);
     builder.WebHost.ConfigureKestrel(options => {
         options.Listen(IPAddress.Parse(ip), port);
     });
     
     var app = builder.Build();
-    var captureService = app.Services.GetRequiredService<ScreenCaptureService>();
-    captureService.InitializeMonitors();
+    var service = app.Services.GetRequiredService<ScreenCaptureService>();
     
     // Legacy SSE transport (for backward compatibility with QwenCode)
-    var mcp = new McpServer(captureService);
+    var mcp = new McpServer(service);
     mcp.Configure(app);
     
     // New Streamable HTTP transport (for Claude Code, Gemini CLI, OpenCode)
     var sessionManager = new McpSessionManager();
-    var streamableHttp = new StreamableHttpServer(captureService, sessionManager);
+    var streamableHttp = new StreamableHttpServer(service, sessionManager);
     streamableHttp.Configure(app);
     
     // Register cleanup on application shutdown
     var lifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
     lifetime.ApplicationStopping.Register(() => {
         Console.WriteLine("[Server] Shutting down...");
-        captureService.StopAllStreams();
+        service.StopAllStreams();
         mcp.StopAllClients();
         Console.WriteLine("[Server] Cleanup completed");
     });
@@ -74,9 +101,338 @@ rootCmd.SetHandler((ip, port, desktop) => {
     Console.WriteLine("[Server] Press Ctrl+C to stop");
     
     app.Run();
-}, ipOption, portOption, desktopOption);
+}
 
-await rootCmd.InvokeAsync(args);
+public class StdioMcpServer {
+    private readonly ScreenCaptureService _capture;
+    private readonly JsonSerializerOptions _json = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+    private int _requestId = 0;
+
+    public StdioMcpServer(ScreenCaptureService capture) => _capture = capture;
+
+    public async Task Run() {
+        try {
+            while (true) {
+                var line = await Console.In.ReadLineAsync();
+                if (line == null) break;
+                if (string.IsNullOrWhiteSpace(line)) continue;
+                
+                try {
+                    var request = JsonSerializer.Deserialize<JsonRpcRequest>(line, _json);
+                    if (request == null) continue;
+                    
+                    var response = HandleRequest(request);
+                    if (response != null) {
+                        var responseJson = JsonSerializer.Serialize(response, _json);
+                        await Console.Out.WriteLineAsync(responseJson);
+                        await Console.Out.FlushAsync();
+                    }
+                } catch (JsonException ex) {
+                    var errorResponse = new JsonRpcErrorResponse(
+                        new JsonRpcId(_requestId++),
+                        new JsonRpcError(-32700, $"Parse error: {ex.Message}", null)
+                    );
+                    await Console.Out.WriteLineAsync(JsonSerializer.Serialize(errorResponse, _json));
+                    await Console.Out.FlushAsync();
+                }
+            }
+        } catch (OperationCanceledException) {
+            // Normal shutdown
+        } catch (Exception ex) {
+            Console.Error.WriteLine($"[Stdio] Fatal error: {ex.Message}");
+        }
+    }
+
+    private JsonRpcResponse? HandleRequest(JsonRpcRequest request) {
+        var id = request.Id ?? new JsonRpcId(_requestId++);
+        
+        return request.Method switch {
+            "initialize" => HandleInitialize(request, id),
+            "initialized" => null, // Notification, no response
+            "tools/list" => HandleToolsList(request, id),
+            "tools/call" => HandleToolsCall(request, id),
+            _ => new JsonRpcResponse(id, null, new JsonRpcError(-32601, $"Method not found: {request.Method}", null))
+        };
+    }
+
+    private JsonRpcResponse HandleInitialize(JsonRpcRequest request, JsonRpcId id) {
+        var result = new {
+            protocolVersion = "2024-11-05",
+            capabilities = new {
+                tools = new { }
+            },
+            serverInfo = new {
+                name = "windows-screen-capture",
+                version = "1.0.0"
+            }
+        };
+        return new JsonRpcResponse(id, result, null);
+    }
+
+    private JsonRpcResponse HandleToolsList(JsonRpcRequest request, JsonRpcId id) {
+        var tools = new object[] {
+            new {
+                name = "list_monitors",
+                description = "List all available monitors/displays with their index, name, resolution, and position",
+                inputSchema = new { type = "object", properties = new { }, required = new string[] { } }
+            },
+            new {
+                name = "list_windows",
+                description = "List all visible windows with their handles, titles, and dimensions",
+                inputSchema = new { type = "object", properties = new { }, required = new string[] { } }
+            },
+            new {
+                name = "see",
+                description = "Capture a screenshot of the specified monitor (like taking a photo with your eyes). Returns the captured image as base64 JPEG.",
+                inputSchema = new {
+                    type = "object",
+                    properties = new {
+                        monitor = new { type = "integer", description = "Monitor index (0=primary, 1=secondary, etc.)", defaultValue = 0, minimum = 0 },
+                        quality = new { type = "integer", description = "JPEG quality (1-100, higher=better quality but larger size)", defaultValue = 80, minimum = 1, maximum = 100 },
+                        maxWidth = new { type = "integer", description = "Maximum width in pixels (image will be resized if larger)", defaultValue = 1920, minimum = 100 }
+                    },
+                    required = new string[] { }
+                }
+            },
+            new {
+                name = "capture_window",
+                description = "Capture a screenshot of a specific window by its handle (HWND). Returns the captured image as base64 JPEG.",
+                inputSchema = new {
+                    type = "object",
+                    properties = new {
+                        hwnd = new { type = "integer", description = "Window handle (HWND) to capture" },
+                        quality = new { type = "integer", description = "JPEG quality (1-100)", defaultValue = 80, minimum = 1, maximum = 100 },
+                        maxWidth = new { type = "integer", description = "Maximum width in pixels", defaultValue = 1920, minimum = 100 }
+                    },
+                    required = new[] { "hwnd" }
+                }
+            },
+            new {
+                name = "capture_region",
+                description = "Capture a screenshot of a specific screen region. Returns the captured image as base64 JPEG.",
+                inputSchema = new {
+                    type = "object",
+                    properties = new {
+                        x = new { type = "integer", description = "X coordinate of the region" },
+                        y = new { type = "integer", description = "Y coordinate of the region" },
+                        w = new { type = "integer", description = "Width of the region" },
+                        h = new { type = "integer", description = "Height of the region" },
+                        quality = new { type = "integer", description = "JPEG quality (1-100)", defaultValue = 80, minimum = 1, maximum = 100 },
+                        maxWidth = new { type = "integer", description = "Maximum width in pixels", defaultValue = 1920, minimum = 100 }
+                    },
+                    required = new[] { "x", "y", "w", "h" }
+                }
+            },
+            new {
+                name = "start_watching",
+                description = "Start a continuous screen capture stream (like watching a live video). Returns a session ID and stream URL.",
+                inputSchema = new {
+                    type = "object",
+                    properties = new {
+                        monitor = new { type = "integer", description = "Monitor index to watch", defaultValue = 0, minimum = 0 },
+                        intervalMs = new { type = "integer", description = "Capture interval in milliseconds (1000=1 second)", defaultValue = 1000, minimum = 100 },
+                        quality = new { type = "integer", description = "JPEG quality (1-100)", defaultValue = 80, minimum = 1, maximum = 100 },
+                        maxWidth = new { type = "integer", description = "Maximum width in pixels", defaultValue = 1920, minimum = 100 }
+                    },
+                    required = new string[] { }
+                }
+            },
+            new {
+                name = "stop_watching",
+                description = "Stop a running screen capture stream by session ID",
+                inputSchema = new {
+                    type = "object",
+                    properties = new {
+                        sessionId = new { type = "string", description = "The session ID returned by start_watching" }
+                    },
+                    required = new[] { "sessionId" }
+                }
+            }
+        };
+        
+        var result = new { tools };
+        return new JsonRpcResponse(id, result, null);
+    }
+
+    private JsonRpcResponse HandleToolsCall(JsonRpcRequest request, JsonRpcId id) {
+        if (request.Params == null) {
+            return new JsonRpcResponse(id, null, new JsonRpcError(-32602, "Invalid params: missing params", null));
+        }
+
+        var paramsEl = request.Params.Value;
+        
+        if (!paramsEl.TryGetProperty("name", out var nameEl)) {
+            return new JsonRpcResponse(id, null, new JsonRpcError(-32602, "Invalid params: missing tool name", null));
+        }
+
+        var toolName = nameEl.GetString();
+        var args = paramsEl.TryGetProperty("arguments", out var argsEl) ? argsEl : default;
+
+        object? result;
+        try {
+            result = toolName switch {
+                "list_monitors" => HandleListMonitors(),
+                "list_windows" => HandleListWindows(),
+                "see" => HandleSee(args),
+                "capture_window" => HandleCaptureWindow(args),
+                "capture_region" => HandleCaptureRegion(args),
+                "start_watching" => HandleStartWatching(args),
+                "stop_watching" => HandleStopWatching(args),
+                _ => throw new ArgumentException($"Unknown tool: {toolName}")
+            };
+        } catch (Exception ex) {
+            return new JsonRpcResponse(id, null, new JsonRpcError(-32603, $"Tool execution error: {ex.Message}", null));
+        }
+
+        return new JsonRpcResponse(id, result, null);
+    }
+
+    private object HandleListMonitors() {
+        var monitors = _capture.GetMonitors();
+        var content = new object[] {
+            new { type = "text", text = JsonSerializer.Serialize(monitors, _json) }
+        };
+        return new { content, isError = false };
+    }
+
+    private object HandleListWindows() {
+        var windows = _capture.GetWindows();
+        var content = new object[] {
+            new { type = "text", text = JsonSerializer.Serialize(windows, _json) }
+        };
+        return new { content, isError = false };
+    }
+
+    private object HandleSee(JsonElement args) {
+        var mon = args.TryGetProperty("monitor", out var m) ? m.GetUInt32() : 0u;
+        var qual = args.TryGetProperty("quality", out var q) ? q.GetInt32() : 80;
+        var maxW = args.TryGetProperty("maxWidth", out var w) ? w.GetInt32() : 1920;
+        var data = _capture.CaptureSingle(mon, maxW, qual);
+        var content = new object[] {
+            new { type = "image", data, mimeType = "image/jpeg" },
+            new { type = "text", text = $"Captured monitor {mon} at {DateTime.Now:HH:mm:ss}" }
+        };
+        return new { content, isError = false };
+    }
+
+    private object HandleCaptureWindow(JsonElement args) {
+        var hwnd = args.TryGetProperty("hwnd", out var h) ? h.GetInt64() : 0L;
+        var qual = args.TryGetProperty("quality", out var q) ? q.GetInt32() : 80;
+        var maxW = args.TryGetProperty("maxWidth", out var w) ? w.GetInt32() : 1920;
+        var data = _capture.CaptureWindow(hwnd, maxW, qual);
+        var content = new object[] {
+            new { type = "image", data, mimeType = "image/jpeg" },
+            new { type = "text", text = $"Captured window {hwnd} at {DateTime.Now:HH:mm:ss}" }
+        };
+        return new { content, isError = false };
+    }
+
+    private object HandleCaptureRegion(JsonElement args) {
+        var x = args.TryGetProperty("x", out var xVal) ? xVal.GetInt32() : 0;
+        var y = args.TryGetProperty("y", out var yVal) ? yVal.GetInt32() : 0;
+        var w = args.TryGetProperty("w", out var wVal) ? wVal.GetInt32() : 1920;
+        var h = args.TryGetProperty("h", out var hVal) ? hVal.GetInt32() : 1080;
+        var qual = args.TryGetProperty("quality", out var q) ? q.GetInt32() : 80;
+        var maxW = args.TryGetProperty("maxWidth", out var max) ? max.GetInt32() : 1920;
+        var data = _capture.CaptureRegion(x, y, w, h, maxW, qual);
+        var content = new object[] {
+            new { type = "image", data, mimeType = "image/jpeg" },
+            new { type = "text", text = $"Captured region at ({x}, {y}) size {w}x{h} at {DateTime.Now:HH:mm:ss}" }
+        };
+        return new { content, isError = false };
+    }
+
+    private object HandleStartWatching(JsonElement args) {
+        var mon = args.TryGetProperty("monitor", out var m) ? m.GetUInt32() : 0u;
+        var interval = args.TryGetProperty("intervalMs", out var i) ? i.GetInt32() : 1000;
+        var qual = args.TryGetProperty("quality", out var q) ? q.GetInt32() : 80;
+        var maxW = args.TryGetProperty("maxWidth", out var w) ? w.GetInt32() : 1920;
+        var id = _capture.StartStream(mon, interval, qual, maxW);
+        var text = JsonSerializer.Serialize(new { sessionId = id });
+        var content = new object[] {
+            new { type = "text", text }
+        };
+        return new { content, isError = false };
+    }
+
+    private object HandleStopWatching(JsonElement args) {
+        var id = args.GetProperty("sessionId").GetString()!;
+        _capture.StopStream(id);
+        var content = new object[] {
+            new { type = "text", text = "Stopped watching" }
+        };
+        return new { content, isError = false };
+    }
+}
+
+// JSON-RPC 2.0 types for stdio mode
+public record JsonRpcRequest(
+    [property: JsonPropertyName("jsonrpc")] string JsonRpc,
+    [property: JsonPropertyName("method")] string Method,
+    [property: JsonPropertyName("params")] JsonElement? Params,
+    [property: JsonPropertyName("id")] JsonRpcId? Id
+);
+
+public record JsonRpcResponse(
+    [property: JsonPropertyName("jsonrpc")] string JsonRpc,
+    [property: JsonPropertyName("id")] JsonRpcId Id,
+    [property: JsonPropertyName("result")] object? Result,
+    [property: JsonPropertyName("error")] JsonRpcError? Error
+) {
+    public JsonRpcResponse(JsonRpcId id, object? result, JsonRpcError? error) 
+        : this("2.0", id, result, error) { }
+}
+
+public record JsonRpcErrorResponse(
+    [property: JsonPropertyName("jsonrpc")] string JsonRpc,
+    [property: JsonPropertyName("id")] JsonRpcId Id,
+    [property: JsonPropertyName("error")] JsonRpcError Error
+) {
+    public JsonRpcErrorResponse(JsonRpcId id, JsonRpcError error) 
+        : this("2.0", id, error) { }
+}
+
+public record JsonRpcError(
+    [property: JsonPropertyName("code")] int Code,
+    [property: JsonPropertyName("message")] string Message,
+    [property: JsonPropertyName("data")] object? Data
+);
+
+[JsonConverter(typeof(JsonRpcIdConverter))]
+public struct JsonRpcId {
+    public int? IntValue { get; }
+    public string? StringValue { get; }
+    
+    public JsonRpcId(int value) { IntValue = value; StringValue = null; }
+    public JsonRpcId(string value) { IntValue = null; StringValue = value; }
+    
+    public override string ToString() => IntValue?.ToString() ?? StringValue ?? "null";
+}
+
+public class JsonRpcIdConverter : System.Text.Json.Serialization.JsonConverter<JsonRpcId> {
+    public override JsonRpcId Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) {
+        if (reader.TokenType == JsonTokenType.Number && reader.TryGetInt32(out var intVal)) {
+            return new JsonRpcId(intVal);
+        }
+        if (reader.TokenType == JsonTokenType.String) {
+            return new JsonRpcId(reader.GetString()!);
+        }
+        if (reader.TokenType == JsonTokenType.Null) {
+            return new JsonRpcId(0);
+        }
+        throw new JsonException($"Unexpected token type for id: {reader.TokenType}");
+    }
+
+    public override void Write(Utf8JsonWriter writer, JsonRpcId value, JsonSerializerOptions options) {
+        if (value.IntValue.HasValue) {
+            writer.WriteNumberValue(value.IntValue.Value);
+        } else if (value.StringValue != null) {
+            writer.WriteStringValue(value.StringValue);
+        } else {
+            writer.WriteNullValue();
+        }
+    }
+}
 
 public class McpServer {
     private readonly ScreenCaptureService _capture;
