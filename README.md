@@ -1,6 +1,6 @@
 # MCP Windows Screen Capture Server
 
-Windows 11 screen capture MCP server with `--ip_addr`, `--port`, `--desktopNum` CLI options.
+Windows 11 screen capture MCP server with stdio transport as default. Supports optional HTTP mode for legacy clients.
 
 > **⚠️ Implementation Note:** This is the **GDI+ version** which works reliably without Direct3D dependencies. If you need high-performance GPU capture, you must complete the Direct3D/Windows Graphics Capture implementation yourself. This GDI+ version is sufficient for most AI assistant use cases.
 
@@ -12,50 +12,50 @@ Windows 11 screen capture MCP server with `--ip_addr`, `--port`, `--desktopNum` 
 
 ```bash
 # Build
-dotnet build -c Release
+dotnet build src/WindowsScreenCaptureServer.csproj -c Release
 
-# Run with CLI options (Required for WSL2)
-dotnet run -- --ip_addr 0.0.0.0 --port 5000 --desktopNum 0
+# Run in stdio mode (default - recommended)
+dotnet run --project src/WindowsScreenCaptureServer.csproj
+
+# Run in HTTP mode (for legacy clients)
+dotnet run --project src/WindowsScreenCaptureServer.csproj -- --http --ip_addr 127.0.0.1 --port 5000
 
 # Or single-file publish
-dotnet publish -c Release -r win-x64 --self-contained false /p:PublishSingleFile=true
+dotnet publish src/WindowsScreenCaptureServer.csproj -c Release -r win-x64 --self-contained false /p:PublishSingleFile=true
 ```
 
 ## CLI Options
-- `--ip_addr`: IP to bind (`0.0.0.0` for WSL2 access, `127.0.0.1` for local only)
+
+### Default Mode (stdio)
+No flags required - runs as stdio-based MCP server:
+```bash
+dotnet run --project src/WindowsScreenCaptureServer.csproj
+```
+
+### HTTP Mode (Optional)
+Enable with `--http` flag for legacy clients or special use cases:
+- `--http`: Enable HTTP mode (stdio is default)
+- `--ip_addr`: IP to bind (default: `127.0.0.1`, use `0.0.0.0` only for external access)
 - `--port`: Port number (default: 5000)
 - `--desktopNum`: Default monitor index (0=primary, 1=secondary, etc.)
 
-## Dual Transport Support
+## Transport Modes
 
-This server supports both transport protocols for maximum compatibility:
+> **Note:** HTTP mode is for backward compatibility and advanced use cases only. The stdio transport is the default and recommended mode for all clients.
 
-| Transport | Endpoint | Status | Best For |
-|-----------|----------|--------|----------|
-| **Streamable HTTP** | `/mcp` | ✅ New Standard | Claude Code, Gemini CLI, OpenCode |
-| **Legacy SSE** | `/sse` | ⚠️ Deprecated | QwenCode, older clients |
+This server supports two transport modes:
 
-### Transport Selection Flow
+| Mode | Default | Use Case |
+|------|---------|----------|
+| **stdio** | ✅ Yes | Recommended for all clients - local, secure, no network exposure |
+| **HTTP** | ❌ No | Legacy support, requires `--http` flag |
 
-```mermaid
-flowchart TD
-    A[Client Connection] --> B{Client Type?}
-    B -->|Claude Code / Gemini CLI / OpenCode| C[/mcp<br/>Streamable HTTP/]
-    B -->|QwenCode / Legacy| D[/sse<br/>Legacy SSE/]
-    C --> E[Session Management<br/>MCP-Session-Id Header]
-    D --> F[Client ID Query Param]
-    E --> G[Tool Execution]
-    F --> G
-```
+### HTTP Endpoints (when --http is enabled)
 
-### AI Agent Configuration Matrix
-
-| AI Agent | Transport | Config Example |
-|----------|-----------|----------------|
-| **Claude Code** | Streamable HTTP | `url: "http://127.0.0.1:5000/mcp"` |
-| **Gemini CLI** | Streamable HTTP | `url: "http://127.0.0.1:5000/mcp"` |
-| **OpenCode** | Streamable HTTP | `url: "http://127.0.0.1:5000/mcp"` |
-| **QwenCode** | Legacy SSE | `url: "http://127.0.0.1:5000/sse"` |
+| Endpoint | Transport | Status |
+|----------|-----------|--------|
+| `/mcp` | Streamable HTTP | Active |
+| `/sse` | Legacy SSE | Deprecated |
 
 ## Available MCP Tools
 
@@ -99,6 +99,17 @@ Ask Claude:
 {"method": "capture_region", "arguments": {"x": 100, "y": 100, "w": 800, "h": 600}}
 ```
 
+## Limitations & Considerations
+
+### Window Capture Limitations
+- **Minimized Windows**: Windows that are minimized may not be captured correctly or may show stale content. Ensure the target window is visible before capturing.
+- **GPU-Accelerated Apps**: Uses PW_RENDERFULLCONTENT flag (Windows 8.1+) to capture Chrome, Electron, WPF apps. This works well for static screenshots but may have limitations with some applications.
+
+### Performance Considerations
+- **Static Screenshots**: ✅ Fully supported - capture single screenshots or periodic captures (every few seconds)
+- **High-Frequency Video Capture**: ⚠️ Not recommended - CPU load is high. For video/streaming use cases, consider Desktop Duplication API (DirectX-based) instead.
+- **Optimal Use Case**: Periodic monitoring, documentation screenshots, automated testing
+
 ## Architecture & Implementation
 
 ### Refactoring History
@@ -114,8 +125,9 @@ Ask Claude:
 
 ### Key Features
 
-- **Dual Transport Support**: Both Streamable HTTP (new) and SSE (legacy) for maximum client compatibility
-- **Session Management**: MCP-Session-Id header with automatic cleanup
+- **stdio Transport**: Default local-only mode - secure, no network exposure
+- **Optional HTTP Mode**: Streamable HTTP and legacy SSE for backward compatibility
+- **Session Management**: MCP-Session-Id header with automatic cleanup (HTTP mode)
 - **Window Enumeration**: EnumWindows API for listing visible applications
 - **Region Capture**: Arbitrary screen region capture using CopyFromScreen
 - **Graceful Shutdown**: Proper cleanup on Ctrl+C or process termination
@@ -124,7 +136,36 @@ Ask Claude:
 
 ## Client Configuration Examples
 
-### Streamable HTTP (Claude Code / Gemini CLI / OpenCode)
+### Stdio Mode (Default / Recommended)
+
+All modern MCP clients support stdio transport. This is the **secure, local-only** mode with no network exposure.
+
+```json
+{
+  "mcpServers": {
+    "windows-capture": {
+      "command": "dotnet",
+      "args": ["run", "--project", "C:\\path\\to\\WindowsScreenCaptureServer.csproj"]
+    }
+  }
+}
+```
+
+Or with the published executable:
+
+```json
+{
+  "mcpServers": {
+    "windows-capture": {
+      "command": "C:\\path\\to\\WindowsScreenCaptureServer.exe"
+    }
+  }
+}
+```
+
+### HTTP Mode (Optional / Legacy)
+
+Only needed for clients that don't support stdio. Requires running the server with `--http` flag first.
 
 ```json
 {
@@ -137,60 +178,32 @@ Ask Claude:
 }
 ```
 
-### Legacy SSE (QwenCode)
-
-```json
-{
-  "mcpServers": {
-    "windows-capture": {
-      "url": "http://127.0.0.1:5000/sse",
-      "transport": "sse"
-    }
-  }
-}
-```
-
-### WSL2 (via Windows host)
-
-```json
-{
-  "mcpServers": {
-    "windows-capture": {
-      "command": "bash",
-      "args": [
-        "-c",
-        "WIN_IP=$(ip route | grep default | awk '{print $3}'); curl -N http://${WIN_IP}:5000/sse"
-      ]
-    }
-  }
-}
-```
-
-## First Run (Firewall)
-
-Run as Administrator in PowerShell:
-
-```powershell
-# For WSL2 subnet only (secure)
-netsh advfirewall firewall add rule name="MCP Screen Capture" dir=in action=allow protocol=TCP localport=5000 remoteip=172.16.0.0/12
-
-# For all networks (use with caution)
-netsh advfirewall firewall add rule name="MCP Screen Capture" dir=in action=allow protocol=TCP localport=5000
-```
-
 ## Security Considerations
 
-- **Origin Validation**: Streamable HTTP endpoint validates Origin header to prevent DNS rebinding attacks
+- **stdio Mode**: No network exposure - completely local and secure
+- **HTTP Mode**: Only enable when necessary; binds to localhost by default
+- **Origin Validation**: HTTP endpoint validates Origin header to prevent DNS rebinding attacks
 - **Session Isolation**: Each client gets a unique session ID with automatic expiration (1 hour)
-- **Localhost Binding**: Default binding to 127.0.0.1 prevents external access
-- **WSL2 Support**: Use `0.0.0.0` only when WSL2 access is required
+
+## First Run (HTTP Mode Only)
+
+If using HTTP mode with external access, run as Administrator in PowerShell:
+
+```powershell
+# For localhost only (default - no firewall rule needed)
+# No action required
+
+# For external access (not recommended)
+netsh advfirewall firewall add rule name="MCP Screen Capture" dir=in action=allow protocol=TCP localport=5000
+```
 
 ## Troubleshooting
 
 | Issue | Solution |
 |-------|----------|
-| Connection refused | Check firewall rules and ensure server is running |
-| 404 on /mcp | Verify you're using the latest build with dual-transport support |
+| stdio mode not working | Ensure the executable path is correct in your MCP client config |
+| Connection refused (HTTP mode) | Check firewall rules and ensure server is running with `--http` flag |
+| 404 on /mcp | Verify you're using the latest build and server is running with `--http` flag |
 | Black screen | Run with Administrator privileges |
 | Window not found | Verify window is visible (not minimized to tray) |
 
