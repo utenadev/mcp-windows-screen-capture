@@ -113,6 +113,10 @@ public class ScreenCaptureService {
     [DllImport("user32.dll", CharSet = CharSet.Auto)] static extern int GetWindowText(IntPtr hWnd, System.Text.StringBuilder lpString, int nMaxCount);
     [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
     [DllImport("user32.dll")] static extern bool PrintWindow(IntPtr hwnd, IntPtr hdcBlt, uint nFlags);
+    [DllImport("user32.dll")] static extern IntPtr GetWindowDC(IntPtr hWnd);
+    [DllImport("user32.dll")] static extern int ReleaseDC(IntPtr hWnd, IntPtr hDC);
+    [DllImport("gdi32.dll")] static extern bool BitBlt(IntPtr hdcDest, int nXDest, int nYDest, int nWidth, int nHeight, IntPtr hdcSrc, int nXSrc, int nYSrc, int dwRop);
+    const int SRCCOPY = 0x00CC0020;
     
     delegate bool EnumMonDelegate(IntPtr h, IntPtr hdc, ref RECT rc, IntPtr d);
     delegate bool EnumWindowsDelegate(IntPtr hWnd, IntPtr lParam);
@@ -170,11 +174,19 @@ public class ScreenCaptureService {
             g.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighQuality;
             g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
-            var hdc = g.GetHdc();
+            
+            var hdcDest = g.GetHdc();
+            var hdcSrc = GetWindowDC(hWnd);
             try {
-                PrintWindow(hWnd, hdc, 0);
+                if (hdcSrc == IntPtr.Zero)
+                    throw new InvalidOperationException($"Failed to get window DC for window {hwnd}");
+                
+                // Use BitBlt instead of PrintWindow for better compatibility
+                BitBlt(hdcDest, 0, 0, w, h, hdcSrc, 0, 0, SRCCOPY);
             } finally {
-                g.ReleaseHdc(hdc);
+                g.ReleaseHdc(hdcDest);
+                if (hdcSrc != IntPtr.Zero)
+                    ReleaseDC(hWnd, hdcSrc);
             }
         }
         return ToJpegBase64(bmp, maxW, quality);
