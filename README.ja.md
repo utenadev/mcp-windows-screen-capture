@@ -24,6 +24,23 @@ dotnet run --project src/WindowsScreenCaptureServer.csproj -- --http --ip_addr 1
 dotnet publish src/WindowsScreenCaptureServer.csproj -c Release -r win-x64 --self-contained false /p:PublishSingleFile=true
 ```
 
+## テスト（stdio モード）
+
+.NET 8 SDK がインストールされていれば、ビルドせずに `dotnet run` で直接 MCP サーバーをテストできます：
+
+```bash
+# 初期化のテスト
+echo '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2024-11-05"},"id":1}' | dotnet run --project src/WindowsScreenCaptureServer.csproj
+
+# list_windows ツールのテスト
+echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"list_windows","arguments":{}},"id":2}' | dotnet run --project src/WindowsScreenCaptureServer.csproj
+
+# list_monitors ツールのテスト
+echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"list_monitors","arguments":{}},"id":3}' | dotnet run --project src/WindowsScreenCaptureServer.csproj
+```
+
+サーバーは JSON-RPC レスポンスを stdout に、ログを stderr に出力するため、テストとデバッグが簡単です。
+
 ## CLI オプション
 
 ### デフォルトモード（stdio）

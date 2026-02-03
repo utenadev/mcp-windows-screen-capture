@@ -2,9 +2,7 @@
 
 Windows 11 screen capture MCP server with stdio transport as default. Supports optional HTTP mode for legacy clients.
 
-Last updated: 2026-02-04
 
-Build: Trigger CI
 
 > **⚠️ Implementation Note:** This is the **GDI+ version** which works reliably without Direct3D dependencies. If you need high-performance GPU capture, you must complete the Direct3D/Windows Graphics Capture implementation yourself. This GDI+ version is sufficient for most AI assistant use cases.
 
@@ -27,6 +25,23 @@ dotnet run --project src/WindowsScreenCaptureServer.csproj -- --http --ip_addr 1
 # Or single-file publish
 dotnet publish src/WindowsScreenCaptureServer.csproj -c Release -r win-x64 --self-contained false /p:PublishSingleFile=true
 ```
+
+## Testing (stdio mode)
+
+With .NET 8 SDK installed, you can test the MCP server directly using `dotnet run` without building:
+
+```bash
+# Test initialization
+echo '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2024-11-05"},"id":1}' | dotnet run --project src/WindowsScreenCaptureServer.csproj
+
+# Test list_windows tool
+echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"list_windows","arguments":{}},"id":2}' | dotnet run --project src/WindowsScreenCaptureServer.csproj
+
+# Test list_monitors tool
+echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"list_monitors","arguments":{}},"id":3}' | dotnet run --project src/WindowsScreenCaptureServer.csproj
+```
+
+The server outputs JSON-RPC responses to stdout and logs to stderr, making it easy to test and debug.
 
 ## CLI Options
 
