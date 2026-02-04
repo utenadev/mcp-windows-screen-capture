@@ -101,6 +101,7 @@ Claude に以下のように尋ねてみてください:
 | v1.4 | **デュアルトランスポート**（Streamable HTTP + SSE） | ✅ マージ済 |
 | v1.5 | **ウィンドウキャプチャ**（list_windows, capture_window, capture_region） | ✅ マージ済 |
 | v2.0 | **MCP SDK 移行**（Microsoft.ModelContextProtocol） | ✅ マージ済 |
+| v2.1 | **stdio 専用化**（HTTP モード削除） | 🔄 作業中 |
 
 ### 主な機能
 
