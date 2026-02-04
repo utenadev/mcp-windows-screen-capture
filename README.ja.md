@@ -2,6 +2,10 @@
 
 Windows 11 向けのスクリーンキャプチャ MCP サーバー。Claude Desktop 用の stdio トランスポートに対応。
 
+## このプロジェクトについて
+
+AI アシスタントのための Model Context Protocol (MCP) を使用した Windows スクリーンキャプチャサーバー。
+
 > **⚠️ 実装メモ:** これは **GDI+ 版** です。Direct3D なしで確実に動作します。高性能な GPU キャプチャが必要な場合は、Direct3D/Windows Graphics Capture を自分で実装してください。この GDI+ 版は AI アシスタント用途には十分です。
 
 ## 動作要件

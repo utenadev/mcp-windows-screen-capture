@@ -2,6 +2,10 @@
 
 Windows 11 screen capture MCP server with stdio transport for Claude Desktop.
 
+## About
+
+A Windows screen capture server for AI assistants using the Model Context Protocol (MCP).
+
 > **⚠️ Implementation Note:** This is **GDI+ version** which works reliably without Direct3D dependencies. If you need high-performance GPU capture, you must complete Direct3D/Windows Graphics Capture implementation yourself. This GDI+ version is sufficient for most AI assistant use cases.
 
 ## Requirements
