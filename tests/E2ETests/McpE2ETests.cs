@@ -107,10 +107,11 @@ public class McpE2ETests
             Assert.That(result, Is.Not.Null);
 
             var imageContent = result.Content.OfType<ImageContentBlock>().FirstOrDefault();
-            if (imageContent == null)
+            if (imageContent is null)
             {
                 var errorContent = result.Content.OfType<TextContentBlock>().FirstOrDefault();
-                Assert.Fail($"Window capture failed: {errorContent?.Text}");
+                var errorText = errorContent?.Text ?? "Unknown error";
+                Assert.Fail($"Window capture failed: {errorText}");
             }
             Assert.That(imageContent.Data, Is.Not.Null, "Image data is null");
 
