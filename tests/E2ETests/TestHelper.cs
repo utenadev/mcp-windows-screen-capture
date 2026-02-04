@@ -26,12 +26,19 @@ public static class TestHelper
         if (string.IsNullOrEmpty(data))
             throw new ArgumentException("Image data is null or empty");
 
-        if (!data.StartsWith("data:image/") && !data.Contains(";base64,"))
-            throw new ArgumentException("Invalid image data format");
-
-        var base64Part = data.Contains(";base64,") 
-            ? data.Split(';')[1].Split(',')[1] 
-            : data;
+        string base64Part;
+        if (data.StartsWith("data:image/") && data.Contains(";base64,"))
+        {
+            base64Part = data.Split(';')[1].Split(',')[1];
+        }
+        else if (data.Contains(";base64,"))
+        {
+            base64Part = data.Split(';')[1].Split(',')[1];
+        }
+        else
+        {
+            base64Part = data;
+        }
 
         var imageBytes = Convert.FromBase64String(base64Part);
         if (imageBytes.Length < minLength)

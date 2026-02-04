@@ -1,12 +1,11 @@
 # MCP Windows Screen Capture Server
 
-Windows 11 screen capture MCP server with stdio transport as default. Supports optional HTTP mode for legacy clients.
+Windows 11 screen capture MCP server with stdio transport for Claude Desktop.
 
-
-
-> **⚠️ Implementation Note:** This is the **GDI+ version** which works reliably without Direct3D dependencies. If you need high-performance GPU capture, you must complete the Direct3D/Windows Graphics Capture implementation yourself. This GDI+ version is sufficient for most AI assistant use cases.
+> **⚠️ Implementation Note:** This is **GDI+ version** which works reliably without Direct3D dependencies. If you need high-performance GPU capture, you must complete Direct3D/Windows Graphics Capture implementation yourself. This GDI+ version is sufficient for most AI assistant use cases.
 
 ## Requirements
+
 - Windows 11 (or Windows 10 1809+)
 - .NET 8.0 SDK
 
@@ -16,65 +15,25 @@ Windows 11 screen capture MCP server with stdio transport as default. Supports o
 # Build
 dotnet build src/WindowsScreenCaptureServer.csproj -c Release
 
-# Run in stdio mode (default - recommended)
-dotnet run --project src/WindowsScreenCaptureServer.csproj
-
-# Run in HTTP mode (for legacy clients)
-dotnet run --project src/WindowsScreenCaptureServer.csproj -- --http --ip_addr 127.0.0.1 --port 5000
-
-# Or single-file publish
-dotnet publish src/WindowsScreenCaptureServer.csproj -c Release -r win-x64 --self-contained false /p:PublishSingleFile=true
+# The executable is at: src/bin/Release/net8.0-windows/win-x64/WindowsScreenCaptureServer.exe
 ```
 
 ## Testing (stdio mode)
 
-With .NET 8 SDK installed, you can test the MCP server directly using `dotnet run` without building:
+With .NET 8 SDK installed, you can test MCP server directly:
 
 ```bash
 # Test initialization
-echo '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2024-11-05"},"id":1}' | dotnet run --project src/WindowsScreenCaptureServer.csproj
+echo '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2024-11-05"},"id":1}' | src/bin/Release/net8.0-windows/win-x64/WindowsScreenCaptureServer.exe
 
 # Test list_windows tool
-echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"list_windows","arguments":{}},"id":2}' | dotnet run --project src/WindowsScreenCaptureServer.csproj
+echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"list_windows","arguments":{}},"id":2}' | src/bin/Release/net8.0-windows/win-x64/WindowsScreenCaptureServer.exe
 
 # Test list_monitors tool
-echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"list_monitors","arguments":{}},"id":3}' | dotnet run --project src/WindowsScreenCaptureServer.csproj
+echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"list_monitors","arguments":{}},"id":3}' | src/bin/Release/net8.0-windows/win-x64/WindowsScreenCaptureServer.exe
 ```
 
 The server outputs JSON-RPC responses to stdout and logs to stderr, making it easy to test and debug.
-
-## CLI Options
-
-### Default Mode (stdio)
-No flags required - runs as stdio-based MCP server:
-```bash
-dotnet run --project src/WindowsScreenCaptureServer.csproj
-```
-
-### HTTP Mode (Optional)
-Enable with `--http` flag for legacy clients or special use cases:
-- `--http`: Enable HTTP mode (stdio is default)
-- `--ip_addr`: IP to bind (default: `127.0.0.1`, use `0.0.0.0` only for external access)
-- `--port`: Port number (default: 5000)
-- `--desktopNum`: Default monitor index (0=primary, 1=secondary, etc.)
-
-## Transport Modes
-
-> **Note:** HTTP mode is for backward compatibility and advanced use cases only. The stdio transport is the default and recommended mode for all clients.
-
-This server supports two transport modes:
-
-| Mode | Default | Use Case |
-|------|---------|----------|
-| **stdio** | ✅ Yes | Recommended for all clients - local, secure, no network exposure |
-| **HTTP** | ❌ No | Legacy support, requires `--http` flag |
-
-### HTTP Endpoints (when --http is enabled)
-
-| Endpoint | Transport | Status |
-|----------|-----------|--------|
-| `/mcp` | Streamable HTTP | Active |
-| `/sse` | Legacy SSE | Deprecated |
 
 ## Available MCP Tools
 
@@ -83,7 +42,7 @@ This server supports two transport modes:
 | Tool | Description |
 |------|-------------|
 | `list_monitors` | List all available monitors/displays |
-| `see` | Capture a screenshot of the specified monitor (like taking a photo with your eyes) |
+| `see` | Capture a screenshot of specified monitor (like taking a photo with your eyes) |
 | `start_watching` | Start a continuous screen capture stream (like watching a live video) |
 | `stop_watching` | Stop a running screen capture stream by session ID |
 
@@ -121,7 +80,7 @@ Ask Claude:
 ## Limitations & Considerations
 
 ### Window Capture Limitations
-- **Minimized Windows**: Windows that are minimized may not be captured correctly or may show stale content. Ensure the target window is visible before capturing.
+- **Minimized Windows**: Windows that are minimized may not be captured correctly or may show stale content. Ensure target window is visible before capturing.
 - **GPU-Accelerated Apps**: Uses PW_RENDERFULLCONTENT flag (Windows 8.1+) to capture Chrome, Electron, WPF apps. This works well for static screenshots but may have limitations with some applications.
 
 ### Performance Considerations
@@ -141,79 +100,75 @@ Ask Claude:
 | v1.3 | Graceful shutdown (IHostApplicationLifetime) | ✅ Merged |
 | v1.4 | **Dual Transport** (Streamable HTTP + SSE) | ✅ Merged |
 | v1.5 | **Window Capture** (list_windows, capture_window, capture_region) | ✅ Merged |
+| v2.0 | **MCP SDK Migration** (Microsoft.ModelContextProtocol) | ✅ Merged |
 
 ### Key Features
 
+- **Official MCP SDK**: Uses Microsoft.ModelContextProtocol for protocol compliance
 - **stdio Transport**: Default local-only mode - secure, no network exposure
-- **Optional HTTP Mode**: Streamable HTTP and legacy SSE for backward compatibility
-- **Session Management**: MCP-Session-Id header with automatic cleanup (HTTP mode)
 - **Window Enumeration**: EnumWindows API for listing visible applications
 - **Region Capture**: Arbitrary screen region capture using CopyFromScreen
 - **Graceful Shutdown**: Proper cleanup on Ctrl+C or process termination
 - **Error Handling**: Comprehensive try-catch blocks with meaningful error messages
-- **CI/CD**: GitHub Actions with automated testing
+- **CI/CD**: GitHub Actions with automated E2E testing
 
-## Client Configuration Examples
+## Claude Desktop Configuration
 
-### Stdio Mode (Default / Recommended)
+### 1. Build the server
 
-All modern MCP clients support stdio transport. This is the **secure, local-only** mode with no network exposure.
+```bash
+dotnet build src/WindowsScreenCaptureServer.csproj -c Release
+```
+
+### 2. Open Claude Desktop settings
+
+1. Launch Claude Desktop
+2. Click on Settings (gear icon)
+3. Navigate to "MCP Servers"
+4. Click "Add MCP Server"
+
+### 3. Add the Windows Screen Capture server
+
+Configure the MCP server with the executable path:
 
 ```json
 {
   "mcpServers": {
     "windows-capture": {
-      "command": "dotnet",
-      "args": ["run", "--project", "C:\\path\\to\\WindowsScreenCaptureServer.csproj"]
+      "command": "C:\\workspace\\mcp-windows-screen-capture\\src\\bin\\Release\\net8.0-windows\\win-x64\\WindowsScreenCaptureServer.exe"
     }
   }
 }
 ```
 
-Or with the published executable:
+Replace the path with the actual location of the `WindowsScreenCaptureServer.exe` file on your system.
 
-```json
-{
-  "mcpServers": {
-    "windows-capture": {
-      "command": "C:\\path\\to\\WindowsScreenCaptureServer.exe"
-    }
-  }
-}
+### 4. Save and restart
+
+Click "Save" and restart Claude Desktop.
+
+## Usage Examples
+
+### Screen capture
+
+```
+"What's on my screen?"
+"Take a screenshot of monitor 0"
 ```
 
-### HTTP Mode (Optional / Legacy)
+### Window capture
 
-Only needed for clients that don't support stdio. Requires running the server with `--http` flag first.
-
-```json
-{
-  "mcpServers": {
-    "windows-capture": {
-      "url": "http://127.0.0.1:5000/mcp",
-      "transport": "http"
-    }
-  }
-}
+```
+"List all open windows"
+"Capture the Visual Studio window"
+"Show me all visible windows"
 ```
 
-## Security Considerations
+### Continuous monitoring
 
-- **stdio Mode**: No network exposure - completely local and secure
-- **HTTP Mode**: Only enable when necessary; binds to localhost by default
-- **Origin Validation**: HTTP endpoint validates Origin header to prevent DNS rebinding attacks
-- **Session Isolation**: Each client gets a unique session ID with automatic expiration (1 hour)
-
-## First Run (HTTP Mode Only)
-
-If using HTTP mode with external access, run as Administrator in PowerShell:
-
-```powershell
-# For localhost only (default - no firewall rule needed)
-# No action required
-
-# For external access (not recommended)
-netsh advfirewall firewall add rule name="MCP Screen Capture" dir=in action=allow protocol=TCP localport=5000
+```
+"Start watching my screen and tell me when something changes"
+"Monitor the screen for changes"
 ```
 
 ## Troubleshooting
@@ -221,10 +176,10 @@ netsh advfirewall firewall add rule name="MCP Screen Capture" dir=in action=allo
 | Issue | Solution |
 |-------|----------|
 | stdio mode not working | Ensure the executable path is correct in your MCP client config |
-| Connection refused (HTTP mode) | Check firewall rules and ensure server is running with `--http` flag |
-| 404 on /mcp | Verify you're using the latest build and server is running with `--http` flag |
+| Server not found | Verify the path to `WindowsScreenCaptureServer.exe` exists |
 | Black screen | Run with Administrator privileges |
 | Window not found | Verify window is visible (not minimized to tray) |
+| Claude Desktop can't connect | Check the Claude Desktop logs (Settings > Developer > Open Logs) |
 
 ## License
 

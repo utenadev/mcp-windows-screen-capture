@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Runtime.InteropServices;
+using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
 [McpServerToolType]
@@ -23,8 +24,8 @@ public static class ScreenCaptureTools
         return _capture.GetWindows();
     }
 
-    [McpServerTool, Description("Capture a screenshot of the specified monitor or window (like taking a photo with your eyes). Returns the captured image as base64 JPEG.")]
-    public static string See(
+    [McpServerTool, Description("Capture a screenshot of specified monitor or window (like taking a photo with your eyes). Returns the captured image as base64 JPEG.")]
+    public static ImageContentBlock See(
         [Description("Target type: 'monitor' or 'window'")] string targetType = "monitor",
         [Description("Monitor index (0=primary, 1=secondary, etc.) - used when targetType='monitor'")] uint monitor = 0,
         [Description("Window handle (HWND) - used when targetType='window'")] long? hwnd = null,
@@ -33,25 +34,39 @@ public static class ScreenCaptureTools
     {
         if (_capture == null) throw new InvalidOperationException("ScreenCaptureService not initialized");
         
-        if (targetType == "window" && hwnd.HasValue)
+        var imageData = targetType == "window" && hwnd.HasValue
+            ? _capture.CaptureWindow(hwnd.Value, maxWidth, quality)
+            : _capture.CaptureSingle(monitor, maxWidth, quality);
+
+        var base64Data = imageData.Contains(";base64,") ? imageData.Split(';')[1].Split(',')[1] : imageData;
+        
+        return new ImageContentBlock
         {
-            return _capture.CaptureWindow(hwnd.Value, maxWidth, quality);
-        }
-        return _capture.CaptureSingle(monitor, maxWidth, quality);
+            MimeType = "image/jpeg",
+            Data = base64Data
+        };
     }
 
     [McpServerTool, Description("Capture a screenshot of a specific window by its handle (HWND). Returns the captured image as base64 JPEG.")]
-    public static string CaptureWindow(
+    public static ImageContentBlock CaptureWindow(
         [Description("Window handle (HWND) to capture")] long hwnd,
         [Description("JPEG quality (1-100)")] int quality = 80,
         [Description("Maximum width in pixels")] int maxWidth = 1920)
     {
         if (_capture == null) throw new InvalidOperationException("ScreenCaptureService not initialized");
-        return _capture.CaptureWindow(hwnd, maxWidth, quality);
+        
+        var imageData = _capture.CaptureWindow(hwnd, maxWidth, quality);
+        var base64Data = imageData.Contains(";base64,") ? imageData.Split(';')[1].Split(',')[1] : imageData;
+        
+        return new ImageContentBlock
+        {
+            MimeType = "image/jpeg",
+            Data = base64Data
+        };
     }
 
     [McpServerTool, Description("Capture a screenshot of a specific screen region. Returns the captured image as base64 JPEG.")]
-    public static string CaptureRegion(
+    public static ImageContentBlock CaptureRegion(
         [Description("X coordinate of the region")] int x,
         [Description("Y coordinate of the region")] int y,
         [Description("Width of the region")] int w,
@@ -60,7 +75,15 @@ public static class ScreenCaptureTools
         [Description("Maximum width in pixels")] int maxWidth = 1920)
     {
         if (_capture == null) throw new InvalidOperationException("ScreenCaptureService not initialized");
-        return _capture.CaptureRegion(x, y, w, h, maxWidth, quality);
+        
+        var imageData = _capture.CaptureRegion(x, y, w, h, maxWidth, quality);
+        var base64Data = imageData.Contains(";base64,") ? imageData.Split(';')[1].Split(',')[1] : imageData;
+        
+        return new ImageContentBlock
+        {
+            MimeType = "image/jpeg",
+            Data = base64Data
+        };
     }
 
     [McpServerTool, Description("Start a continuous screen capture stream for a monitor or window (like watching a live video). Returns a session ID.")]

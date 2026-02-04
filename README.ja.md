@@ -1,10 +1,11 @@
 # MCP Windows Screen Capture Server
 
-Windows 11 向けのスクリーンキャプチャ MCP サーバー。stdio トランスポートをデフォルトとし、後方互換性のためオプションで HTTP モードをサポートしています。
+Windows 11 向けのスクリーンキャプチャ MCP サーバー。Claude Desktop 用の stdio トランスポートに対応。
 
 > **⚠️ 実装メモ:** これは **GDI+ 版** です。Direct3D なしで確実に動作します。高性能な GPU キャプチャが必要な場合は、Direct3D/Windows Graphics Capture を自分で実装してください。この GDI+ 版は AI アシスタント用途には十分です。
 
 ## 動作要件
+
 - Windows 11（または Windows 10 1809 以降）
 - .NET 8.0 SDK
 
@@ -14,68 +15,25 @@ Windows 11 向けのスクリーンキャプチャ MCP サーバー。stdio ト�
 # ビルド
 dotnet build src/WindowsScreenCaptureServer.csproj -c Release
 
-# stdio モードで実行（デフォルト - 推奨）
-dotnet run --project src/WindowsScreenCaptureServer.csproj
-
-# HTTP モードで実行（レガシークライアント向け）
-dotnet run --project src/WindowsScreenCaptureServer.csproj -- --http --ip_addr 127.0.0.1 --port 5000
-
-# 単一ファイル公開
-dotnet publish src/WindowsScreenCaptureServer.csproj -c Release -r win-x64 --self-contained false /p:PublishSingleFile=true
+# 実行可能ファイル: src/bin/Release/net8.0-windows/win-x64/WindowsScreenCaptureServer.exe
 ```
 
 ## テスト（stdio モード）
 
-.NET 8 SDK がインストールされていれば、ビルドせずに `dotnet run` で直接 MCP サーバーをテストできます：
+.NET 8 SDK がインストールされていれば、MCP サーバーを直接テストできます：
 
 ```bash
 # 初期化のテスト
-echo '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2024-11-05"},"id":1}' | dotnet run --project src/WindowsScreenCaptureServer.csproj
+echo '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2024-11-05"},"id":1}' | src/bin/Release/net8.0-windows/win-x64/WindowsScreenCaptureServer.exe
 
 # list_windows ツールのテスト
-echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"list_windows","arguments":{}},"id":2}' | dotnet run --project src/WindowsScreenCaptureServer.csproj
+echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"list_windows","arguments":{}},"id":2}' | src/bin/Release/net8.0-windows/win-x64/WindowsScreenCaptureServer.exe
 
 # list_monitors ツールのテスト
-echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"list_monitors","arguments":{}},"id":3}' | dotnet run --project src/WindowsScreenCaptureServer.csproj
+echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"list_monitors","arguments":{}},"id":3}' | src/bin/Release/net8.0-windows/win-x64/WindowsScreenCaptureServer.exe
 ```
 
 サーバーは JSON-RPC レスポンスを stdout に、ログを stderr に出力するため、テストとデバッグが簡単です。
-
-## CLI オプション
-
-### デフォルトモード（stdio）
-
-フラグは不要です - stdio ベースの MCP サーバーとして実行されます：
-
-```bash
-dotnet run --project src/WindowsScreenCaptureServer.csproj
-```
-
-### HTTP モード（オプション）
-
-レガシークライアントや特殊なユースケースのために `--http` フラグで有効化：
-- `--http`: HTTP モードを有効化（stdio がデフォルト）
-- `--ip_addr`: バインドする IP（デフォルト: `127.0.0.1`、外部アクセスには `0.0.0.0` を使用）
-- `--port`: ポート番号（デフォルト: 5000）
-- `--desktopNum`: デフォルトモニター番号（0=プライマリ、1=セカンダリなど）
-
-## トランスポートモード
-
-> **注:** HTTP モードは後方互換性と高度なユースケースのみを目的としています。stdio トランスポートはデフォルトであり、すべてのクライアントに推奨されるモードです。
-
-このサーバーは 2 つのトランスポートモードをサポートしています：
-
-| モード | デフォルト | 用途 |
-|--------|-----------|------|
-| **stdio** | ✅ はい | すべてのクライアントに推奨 - ローカル、安全、ネットワーク暴露なし |
-| **HTTP** | ❌ いいえ | レガシーサポート、`--http` フラグが必要 |
-
-### HTTP エンドポイント（--http 有効時）
-
-| エンドポイント | トランスポート | ステータス |
-|-----------|-----------|--------|
-| `/mcp` | Streamable HTTP | アクティブ |
-| `/sse` | レガシー SSE | 非推奨 |
 
 ## 利用可能な MCP ツール
 
@@ -100,7 +58,7 @@ dotnet run --project src/WindowsScreenCaptureServer.csproj
 
 Claude に以下のように尋ねてみてください:
 - 「今画面に何が映ってる？」
-- 「モニター1を見て」
+- 「モニター0を見て」
 - 「開いているウィンドウを一覧表示して」
 - 「Visual Studio のウィンドウをキャプチャして」
 - 「(100,100) から (500,500) の領域をキャプチャして」
@@ -123,7 +81,7 @@ Claude に以下のように尋ねてみてください:
 
 ### ウィンドウキャプチャの制約
 - **最小化されたウィンドウ**: 最小化されたウィンドウは正しくキャプチャされないか、古い内容が表示される場合があります。キャプチャ前に対象のウィンドウが表示されていることを確認してください。
-- **GPUアクセラレーションアプリ**: PW_RENDERFULLCONTENT フラグ（Windows 8.1+）を使用して、Chrome、Electron、WPF アプリをキャプチャします。これは静止画スクリーンショットには適していますが、一部のアプリケーションでは制限がある場合があります。
+- **GPU アクセラレーションアプリ**: PW_RENDERFULLCONTENT フラグ（Windows 8.1+）を使用して、Chrome、Electron、WPF アプリをキャプチャします。これは静止画スクリーンショットには適していますが、一部のアプリケーションでは制限がある場合があります。
 
 ### パフォーマンス考慮事項
 - **静止画スクリーンショット**: ✅ 完全にサポートされています - 単一のスクリーンショットや定期的なキャプチャ（数秒ごと）が可能です
@@ -142,79 +100,75 @@ Claude に以下のように尋ねてみてください:
 | v1.3 | グレースフルシャットダウン（IHostApplicationLifetime） | ✅ マージ済 |
 | v1.4 | **デュアルトランスポート**（Streamable HTTP + SSE） | ✅ マージ済 |
 | v1.5 | **ウィンドウキャプチャ**（list_windows, capture_window, capture_region） | ✅ マージ済 |
+| v2.0 | **MCP SDK 移行**（Microsoft.ModelContextProtocol） | ✅ マージ済 |
 
 ### 主な機能
 
+- **公式 MCP SDK**: Microsoft.ModelContextProtocol を使用してプロトコル準拠
 - **stdio トランスポート**: デフォルトのローカル専用モード - 安全、ネットワーク暴露なし
-- **オプションの HTTP モード**: 後方互換性のための Streamable HTTP とレガシー SSE
-- **セッション管理**: MCP-Session-Id ヘッダーによる自動クリーンアップ（HTTP モード）
 - **ウィンドウ列挙**: EnumWindows API で表示中のアプリケーションを一覧表示
 - **領域キャプチャ**: CopyFromScreen を使用した任意の画面領域キャプチャ
 - **グレースフルシャットダウン**: Ctrl+C やプロセス終了時の適切なクリーンアップ
 - **エラーハンドリング**: 意味のあるエラーメッセージを含む包括的な try-catch ブロック
-- **CI/CD**: 自動テスト付き GitHub Actions
+- **CI/CD**: 自動 E2E テスト付き GitHub Actions
 
-## クライアント設定例
+## Claude Desktop の設定
 
-### stdio モード（デフォルト / 推奨）
+### 1. サーバーをビルド
 
-すべてのモダンな MCP クライアントは stdio トランスポートをサポートしています。これは **安全でローカル専用** のモードで、ネットワーク暴露がありません。
+```bash
+dotnet build src/WindowsScreenCaptureServer.csproj -c Release
+```
+
+### 2. Claude Desktop の設定を開く
+
+1. Claude Desktop を起動
+2. 設定（歯車アイコン）をクリック
+3. 「MCP Servers」に移動
+4. 「Add MCP Server」をクリック
+
+### 3. Windows Screen Capture サーバーを追加
+
+実行可能ファイルのパスを設定します：
 
 ```json
 {
   "mcpServers": {
     "windows-capture": {
-      "command": "dotnet",
-      "args": ["run", "--project", "C:\\path\\to\\WindowsScreenCaptureServer.csproj"]
+      "command": "C:\\workspace\\mcp-windows-screen-capture\\src\\bin\\Release\\net8.0-windows\\win-x64\\WindowsScreenCaptureServer.exe"
     }
   }
 }
 ```
 
-または、公開済み実行ファイルの場合：
+パスをシステム上の `WindowsScreenCaptureServer.exe` の実際の場所に置き換えてください。
 
-```json
-{
-  "mcpServers": {
-    "windows-capture": {
-      "command": "C:\\path\\to\\WindowsScreenCaptureServer.exe"
-    }
-  }
-}
+### 4. 保存して再起動
+
+「Save」をクリックし、Claude Desktop を再起動します。
+
+## 使用例
+
+### 画面キャプチャ
+
+```
+「今画面に何が映ってる？」
+「モニター0のスクリーンショットを撮って」
 ```
 
-### HTTP モード（オプション / レガシー）
+### ウィンドウキャプチャ
 
-stdio をサポートしないクライアントでのみ必要です。サーバーを `--http` フラグ付きで実行する必要があります。
-
-```json
-{
-  "mcpServers": {
-    "windows-capture": {
-      "url": "http://127.0.0.1:5000/mcp",
-      "transport": "http"
-    }
-  }
-}
+```
+「開いているウィンドウを一覧表示して」
+「Visual Studio のウィンドウをキャプチャして」
+「表示されているウィンドウをすべて見せて」
 ```
 
-## セキュリティ考慮事項
+### 連続監視
 
-- **stdio モード**: ネットワーク暴露なし - 完全にローカルで安全
-- **HTTP モード**: 必要な場合のみ有効化してください。デフォルトで localhost にバインドされます
-- **Origin 検証**: HTTP エンドポイントは Origin ヘッダーを検証し、DNS リバインディング攻撃を防止
-- **セッション分離**: 各クライアントは一意のセッション ID を取得し、自動的に期限切れ（1時間）
-
-## 初回実行（HTTP モードのみ）
-
-HTTP モードで外部アクセスを使用する場合は、PowerShell（管理者権限）で実行してください：
-
-```powershell
-# ローカルホストのみ（デフォルト - ファイアウォールルール不要）
-# アクション不要
-
-# 外部アクセス（推奨されません）
-netsh advfirewall firewall add rule name="MCP Screen Capture" dir=in action=allow protocol=TCP localport=5000
+```
+「画面を監視して、変化があったら教えて」
+「画面の変化を監視して」
 ```
 
 ## トラブルシューティング
@@ -222,10 +176,10 @@ netsh advfirewall firewall add rule name="MCP Screen Capture" dir=in action=allo
 | 問題 | 解決方法 |
 |-------|----------|
 | stdio モードが動作しない | MCP クライアント設定で実行可能ファイルのパスが正しいことを確認 |
-| 接続が拒否される（HTTP モード） | ファイアウォールルールを確認し、サーバーが `--http` フラグ付きで実行されていることを確認 |
-| /mcp で 404 エラー | 最新のビルドを使用し、サーバーが `--http` フラグ付きで実行されていることを確認 |
+| サーバーが見つからない | `WindowsScreenCaptureServer.exe` のパスが存在することを確認 |
 | 黒い画面が表示される | 管理者権限で実行 |
 | ウィンドウが見つからない | ウィンドウが表示されていることを確認（システムトレイに最小化されていない） |
+| Claude Desktop に接続できない | Claude Desktop のログを確認（設定 > 開発者 > ログを開く） |
 
 ## ライセンス
 
