@@ -22,10 +22,13 @@ jobs:
         dotnet-version: '8.0.x'
     
     - name: Build Server
-      run: dotnet build src/WindowsScreenCaptureServer.csproj -c Release
+      run: dotnet build src/WindowsScreenCaptureServer.csproj -c Release --verbosity normal
     
     - name: Run E2E Tests
-      run: dotnet test tests/E2ETests/E2ETests.csproj -c Release
+      run: dotnet test tests/E2ETests/E2ETests.csproj -c Release --verbosity normal
+    
+    - name: List test directory
+      run: ls -la tests/
     
     - name: Upload artifact (release only)
       if: github.event_name == 'release' && github.event.action == 'created'
