@@ -21,6 +21,12 @@ jobs:
       with:
         dotnet-version: '8.0.x'
     
+    - name: Clear NuGet cache
+      run: dotnet nuget locals all --clear
+    
+    - name: Restore dependencies
+      run: dotnet restore src/WindowsScreenCaptureServer.csproj --verbosity normal
+    
     - name: Build Server
       run: dotnet build src/WindowsScreenCaptureServer.csproj -c Release --verbosity normal
     
