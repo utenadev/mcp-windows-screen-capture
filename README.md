@@ -60,7 +60,7 @@ Ask Claude:
 - "See what's on my screen"
 - "Look at monitor 1"
 - "List all open windows"
-- "Capture the Visual Studio window"
+- "Capture Visual Studio window"
 - "Capture a region from (100,100) to (500,500)"
 - "Start watching my screen and tell me when something changes"
 
@@ -101,6 +101,7 @@ Ask Claude:
 | v1.4 | **Dual Transport** (Streamable HTTP + SSE) | ✅ Merged |
 | v1.5 | **Window Capture** (list_windows, capture_window, capture_region) | ✅ Merged |
 | v2.0 | **MCP SDK Migration** (Microsoft.ModelContextProtocol) | ✅ Merged |
+| v2.1 | **Stdio-only mode** (removed HTTP mode) | 🔄 In Progress |
 
 ### Key Features
 
@@ -114,7 +115,7 @@ Ask Claude:
 
 ## Claude Desktop Configuration
 
-### 1. Build the server
+### 1. Build server
 
 ```bash
 dotnet build src/WindowsScreenCaptureServer.csproj -c Release
@@ -127,9 +128,9 @@ dotnet build src/WindowsScreenCaptureServer.csproj -c Release
 3. Navigate to "MCP Servers"
 4. Click "Add MCP Server"
 
-### 3. Add the Windows Screen Capture server
+### 3. Add Windows Screen Capture server
 
-Configure the MCP server with the executable path:
+Configure MCP server with executable path:
 
 ```json
 {
@@ -141,7 +142,7 @@ Configure the MCP server with the executable path:
 }
 ```
 
-Replace the path with the actual location of the `WindowsScreenCaptureServer.exe` file on your system.
+Replace the path with the actual location of `WindowsScreenCaptureServer.exe` file on your system.
 
 ### 4. Save and restart
 
@@ -160,7 +161,7 @@ Click "Save" and restart Claude Desktop.
 
 ```
 "List all open windows"
-"Capture the Visual Studio window"
+"Capture Visual Studio window"
 "Show me all visible windows"
 ```
 
@@ -168,18 +169,18 @@ Click "Save" and restart Claude Desktop.
 
 ```
 "Start watching my screen and tell me when something changes"
-"Monitor the screen for changes"
+"Monitor screen for changes"
 ```
 
 ## Troubleshooting
 
 | Issue | Solution |
 |-------|----------|
-| stdio mode not working | Ensure the executable path is correct in your MCP client config |
-| Server not found | Verify the path to `WindowsScreenCaptureServer.exe` exists |
+| stdio mode not working | Ensure executable path is correct in your MCP client config |
+| Server not found | Verify path to `WindowsScreenCaptureServer.exe` exists |
 | Black screen | Run with Administrator privileges |
 | Window not found | Verify window is visible (not minimized to tray) |
-| Claude Desktop can't connect | Check the Claude Desktop logs (Settings > Developer > Open Logs) |
+| Claude Desktop can't connect | Check Claude Desktop logs (Settings > Developer > Open Logs) |
 
 ## License
 
