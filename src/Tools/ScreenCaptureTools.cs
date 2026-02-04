@@ -1,0 +1,92 @@
+using System.ComponentModel;
+using System.Runtime.InteropServices;
+using ModelContextProtocol.Server;
+
+[McpServerToolType]
+public static class ScreenCaptureTools
+{
+    private static ScreenCaptureService? _capture;
+
+    public static void SetCaptureService(ScreenCaptureService capture) => _capture = capture;
+
+    [McpServerTool, Description("List all available monitors/displays with their index, name, resolution, and position")]
+    public static List<MonitorInfo> ListMonitors()
+    {
+        if (_capture == null) throw new InvalidOperationException("ScreenCaptureService not initialized");
+        return _capture.GetMonitors();
+    }
+
+    [McpServerTool, Description("List all visible windows with their handles, titles, and dimensions")]
+    public static List<WindowInfo> ListWindows()
+    {
+        if (_capture == null) throw new InvalidOperationException("ScreenCaptureService not initialized");
+        return _capture.GetWindows();
+    }
+
+    [McpServerTool, Description("Capture a screenshot of the specified monitor or window (like taking a photo with your eyes). Returns the captured image as base64 JPEG.")]
+    public static string See(
+        [Description("Target type: 'monitor' or 'window'")] string targetType = "monitor",
+        [Description("Monitor index (0=primary, 1=secondary, etc.) - used when targetType='monitor'")] uint monitor = 0,
+        [Description("Window handle (HWND) - used when targetType='window'")] long? hwnd = null,
+        [Description("JPEG quality (1-100, higher=better quality but larger size)")] int quality = 80,
+        [Description("Maximum width in pixels (image will be resized if larger)")] int maxWidth = 1920)
+    {
+        if (_capture == null) throw new InvalidOperationException("ScreenCaptureService not initialized");
+        
+        if (targetType == "window" && hwnd.HasValue)
+        {
+            return _capture.CaptureWindow(hwnd.Value, maxWidth, quality);
+        }
+        return _capture.CaptureSingle(monitor, maxWidth, quality);
+    }
+
+    [McpServerTool, Description("Capture a screenshot of a specific window by its handle (HWND). Returns the captured image as base64 JPEG.")]
+    public static string CaptureWindow(
+        [Description("Window handle (HWND) to capture")] long hwnd,
+        [Description("JPEG quality (1-100)")] int quality = 80,
+        [Description("Maximum width in pixels")] int maxWidth = 1920)
+    {
+        if (_capture == null) throw new InvalidOperationException("ScreenCaptureService not initialized");
+        return _capture.CaptureWindow(hwnd, maxWidth, quality);
+    }
+
+    [McpServerTool, Description("Capture a screenshot of a specific screen region. Returns the captured image as base64 JPEG.")]
+    public static string CaptureRegion(
+        [Description("X coordinate of the region")] int x,
+        [Description("Y coordinate of the region")] int y,
+        [Description("Width of the region")] int w,
+        [Description("Height of the region")] int h,
+        [Description("JPEG quality (1-100)")] int quality = 80,
+        [Description("Maximum width in pixels")] int maxWidth = 1920)
+    {
+        if (_capture == null) throw new InvalidOperationException("ScreenCaptureService not initialized");
+        return _capture.CaptureRegion(x, y, w, h, maxWidth, quality);
+    }
+
+    [McpServerTool, Description("Start a continuous screen capture stream for a monitor or window (like watching a live video). Returns a session ID.")]
+    public static string StartWatching(
+        [Description("Target type: 'monitor' or 'window'")] string targetType = "monitor",
+        [Description("Monitor index to watch - used when targetType='monitor'")] uint monitor = 0,
+        [Description("Window handle (HWND) to watch - used when targetType='window'")] long? hwnd = null,
+        [Description("Capture interval in milliseconds (1000=1 second)")] int intervalMs = 1000,
+        [Description("JPEG quality (1-100)")] int quality = 80,
+        [Description("Maximum width in pixels")] int maxWidth = 1920)
+    {
+        if (_capture == null) throw new InvalidOperationException("ScreenCaptureService not initialized");
+        
+        if (targetType == "window" && hwnd.HasValue)
+        {
+            return _capture.StartWindowStream(hwnd.Value, intervalMs, quality, maxWidth);
+        }
+        return _capture.StartStream(monitor, intervalMs, quality, maxWidth);
+    }
+
+    [McpServerTool, Description("Stop a running screen capture stream by session ID")]
+    public static string StopWatching(
+        [Description("The session ID returned by start_watching")] string sessionId)
+    {
+        if (_capture == null) throw new InvalidOperationException("ScreenCaptureService not initialized");
+        _capture.StopStream(sessionId);
+        return "Stopped watching";
+    }
+}
