@@ -1,6 +1,7 @@
 using System.CommandLine;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using ModelContextProtocol;
 using ModelContextProtocol.Server;
 
@@ -24,6 +25,9 @@ rootCmd.SetHandler((desktop) => {
     Console.Error.WriteLine("[Stdio] MCP Windows Screen Capture Server started in stdio mode");
     
     var builder = Host.CreateApplicationBuilder();
+    // Disable logging to stdout for MCP stdio protocol compliance
+    builder.Logging.ClearProviders();
+    builder.Logging.AddProvider(new StderrLoggerProvider());
     builder.Services
         .AddMcpServer()
         .WithStdioServerTransport()
@@ -34,3 +38,30 @@ rootCmd.SetHandler((desktop) => {
 }, desktopOption);
 
 await rootCmd.InvokeAsync(args);
+
+// Custom logger that writes to stderr to avoid polluting stdout (MCP stdio protocol)
+public class StderrLoggerProvider : ILoggerProvider
+{
+    public ILogger CreateLogger(string categoryName) => new StderrLogger(categoryName);
+    public void Dispose() { }
+}
+
+public class StderrLogger : ILogger
+{
+    private readonly string _category;
+    public StderrLogger(string category) => _category = category;
+    public IDisposable? BeginScope<TState>(TState state) where TState : notnull => NullScope.Instance;
+    public bool IsEnabled(LogLevel logLevel) => true;
+    public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+    {
+        if (!IsEnabled(logLevel)) return;
+        var message = formatter(state, exception);
+        Console.Error.WriteLine($"[{logLevel}] {_category}: {message}");
+    }
+}
+
+public class NullScope : IDisposable
+{
+    public static NullScope Instance { get; } = new NullScope();
+    public void Dispose() { }
+}
