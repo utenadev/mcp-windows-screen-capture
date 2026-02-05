@@ -4,7 +4,7 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WindowsScreenCaptureServer", "src\WindowsScreenCaptureServer.csproj", "{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WindowsScreenCapture.Tests", "tests\WindowsScreenCapture.Tests\WindowsScreenCapture.Tests.csproj", "{B2C3D4E5-F6A7-8901-BCDE-123456789012}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "E2ETests", "tests\E2ETests\E2ETests.csproj", "{B2C3D4E5-F6A7-8901-BCDE-123456789012}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
