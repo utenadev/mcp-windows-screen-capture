@@ -9,8 +9,8 @@ AI アシスタントのための Model Context Protocol (MCP) を使用した W
 ## 動作要件
 
 - Windows 11（または Windows 10 1809 以降）
-- .NET 8.0 SDK（ビルド時のみ）
 - ビルド済みバイナリは [Releases](../../releases) から入手可能
+- .NET 8.0 SDK（ソースからビルドする場合のみ必要）
 
 ## 利用可能な MCP ツール
 

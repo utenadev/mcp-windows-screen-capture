@@ -9,8 +9,8 @@ A Windows screen capture server for AI assistants using the Model Context Protoc
 ## Requirements
 
 - Windows 11 (or Windows 10 1809+)
-- .NET 8.0 SDK (for building)
 - Pre-built binaries available in [Releases](../../releases)
+- .NET 8.0 SDK (only required for building from source)
 
 ## Available MCP Tools
 
