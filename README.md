@@ -176,6 +176,55 @@ Click "Save" and restart Claude Desktop.
 "Monitor screen for changes"
 ```
 
+## Streaming Features
+
+### Frame Streaming with HTTP Server
+
+The server includes an optional HTTP server for frame streaming, allowing browser-based viewing:
+
+```bash
+# Start with HTTP server (default port 5000)
+WindowsScreenCaptureServer.exe --httpPort 5000
+
+# Or disable HTTP server
+WindowsScreenCaptureServer.exe --httpPort 0
+```
+
+**HTTP Endpoints:**
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /frame/{sessionId}` | Get latest frame as JPEG image |
+| `GET /frame/{sessionId}/info` | Get frame metadata (hash, timestamp) |
+| `GET /health` | Health check |
+| `GET /` | Server info and usage |
+
+**Browser Usage Example:**
+
+```html
+<!-- Simple auto-refresh image -->
+<img src="http://localhost:5000/frame/SESSION_ID" 
+     style="max-width: 100%;" 
+     onload="setTimeout(() => this.src = this.src.split('?')[0] + '?' + Date.now(), 1000)">
+```
+
+### Frame Polling with MCP Tools
+
+For programmatic access without HTTP server:
+
+```bash
+# Start watching
+start_watching(targetType="monitor", monitor=0, intervalMs=1000)
+
+# Poll for latest frame
+get_latest_frame(sessionId="SESSION_ID")
+# Returns: { sessionId, hasFrame, image, hash, captureTime, targetType }
+
+# Check if frame changed by comparing hash values
+```
+
+**Change Detection:** The `get_latest_frame` tool returns a SHA256 hash of the frame. Compare this hash with the previous value to detect changes without re-downloading the image data.
+
 ## Troubleshooting
 
 | Issue | Solution |

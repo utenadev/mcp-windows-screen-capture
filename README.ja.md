@@ -176,6 +176,55 @@ dotnet build src/WindowsScreenCaptureServer.csproj -c Release
 「画面の変化を監視して」
 ```
 
+## ストリーミング機能
+
+### HTTPサーバーによるフレームストリーミング
+
+サーバーにはオプションのHTTPサーバーが含まれており、ブラウザベースでの表示が可能です：
+
+```bash
+# HTTPサーバー付きで起動（デフォルトポート5000）
+WindowsScreenCaptureServer.exe --httpPort 5000
+
+# HTTPサーバーを無効化
+WindowsScreenCaptureServer.exe --httpPort 0
+```
+
+**HTTPエンドポイント:**
+
+| エンドポイント | 説明 |
+|----------|-------------|
+| `GET /frame/{sessionId}` | 最新フレームをJPEG画像として取得 |
+| `GET /frame/{sessionId}/info` | フレームメタデータ（hash、タイムスタンプ）を取得 |
+| `GET /health` | ヘルスチェック |
+| `GET /` | サーバー情報と使い方 |
+
+**ブラウザ使用例:**
+
+```html
+<!-- 簡易自動更新画像 -->
+<img src="http://localhost:5000/frame/SESSION_ID" 
+     style="max-width: 100%;" 
+     onload="setTimeout(() => this.src = this.src.split('?')[0] + '?' + Date.now(), 1000)">
+```
+
+### MCPツールによるフレームポーリング
+
+HTTPサーバーなしでプログラム的にアクセスする場合：
+
+```bash
+# 監視開始
+start_watching(targetType="monitor", monitor=0, intervalMs=1000)
+
+# 最新フレームをポーリング
+get_latest_frame(sessionId="SESSION_ID")
+# 返値: { sessionId, hasFrame, image, hash, captureTime, targetType }
+
+# hash値を比較してフレームの変更を検出
+```
+
+**変更検出:** `get_latest_frame` ツールはフレームのSHA256ハッシュを返します。ハッシュ値を前回の値と比較することで、画像データを再ダウンロードせずに変更を検出できます。
+
 ## トラブルシューティング
 
 | 問題 | 解決方法 |
