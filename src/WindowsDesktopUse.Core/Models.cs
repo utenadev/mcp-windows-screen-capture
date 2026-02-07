@@ -15,20 +15,21 @@ public record WindowInfo(long Hwnd, string Title, int W, int H, int X, int Y);
 /// <summary>
 /// Stream session for continuous capture
 /// </summary>
-public class StreamSession
+public class StreamSession : IDisposable
 {
-    public string Id = "";
-    public string TargetType = "monitor";
-    public uint MonIdx;
-    public long Hwnd;
-    public int Interval;
-    public int Quality;
-    public int MaxW;
-    public CancellationTokenSource Cts = new();
+    public string Id { get; set; } = "";
+    public string TargetType { get; set; } = "monitor";
+    public uint MonIdx { get; set; }
+    public long Hwnd { get; set; }
+    public int Interval { get; set; }
+    public int Quality { get; set; }
+    public int MaxW { get; set; }
+    public CancellationTokenSource Cts { get; set; } = new();
     public Channel<string> Channel { get; }
 
     private string _latestFrame = "";
     private readonly object _frameLock = new();
+    private bool _disposed;
 
     public string LatestFrame
     {
@@ -63,6 +64,16 @@ public class StreamSession
     public StreamSession()
     {
         Channel = System.Threading.Channels.Channel.CreateUnbounded<string>();
+    }
+
+    public void Dispose()
+    {
+        if (!_disposed)
+        {
+            Cts?.Cancel();
+            Cts?.Dispose();
+            _disposed = true;
+        }
     }
 }
 
