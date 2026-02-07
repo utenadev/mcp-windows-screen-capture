@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Diagnostics;
 
 namespace WindowsDesktopUse.Input;
 
@@ -23,20 +24,16 @@ public enum KeyAction
 }
 
 /// <summary>
-/// Service for mouse and keyboard input operations
+/// Service for mouse and keyboard input operations using SendInput API
 /// </summary>
 public class InputService
 {
     [DllImport("user32.dll")]
-    static extern bool SetCursorPos(int x, int y);
-
-    [DllImport("user32.dll")]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     static extern bool GetCursorPos(out POINT lpPoint);
 
     [DllImport("user32.dll")]
-    static extern void mouse_event(uint dwFlags, uint dx, uint dy, uint dwData, int dwExtraInfo);
-
-    [DllImport("user32.dll")]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
 
     [StructLayout(LayoutKind.Sequential)]
@@ -92,13 +89,31 @@ public class InputService
     const uint MOUSEEVENTF_MIDDLEUP = 0x0040;
     const uint MOUSEEVENTF_ABSOLUTE = 0x8000;
     const uint KEYEVENTF_KEYUP = 0x0002;
+    const uint KEYEVENTF_UNICODE = 0x0004;
 
     /// <summary>
-    /// Move mouse cursor to absolute position
+    /// Move mouse cursor to absolute position using SendInput
     /// </summary>
     public void MoveMouse(int x, int y)
     {
-        SetCursorPos(x, y);
+        var input = new INPUT
+        {
+            type = INPUT_MOUSE,
+            mkhi = new MOUSEKEYBDHARDWAREINPUT
+            {
+                mi = new MOUSEINPUT
+                {
+                    dx = x,
+                    dy = y,
+                    dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE,
+                    time = 0,
+                    dwExtraInfo = IntPtr.Zero,
+                    mouseData = 0
+                }
+            }
+        };
+
+        SendInput(1, new[] { input }, Marshal.SizeOf(typeof(INPUT)));
     }
 
     /// <summary>
@@ -111,13 +126,13 @@ public class InputService
     }
 
     /// <summary>
-    /// Click mouse button
+    /// Click mouse button using SendInput
     /// </summary>
     public void ClickMouse(MouseButton button, int count = 1)
     {
         for (int i = 0; i < count; i++)
         {
-            var (down, up) = button switch
+            var (downFlag, upFlag) = button switch
             {
                 MouseButton.Left => (MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP),
                 MouseButton.Right => (MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP),
@@ -125,8 +140,44 @@ public class InputService
                 _ => (MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP)
             };
 
-            mouse_event(down, 0, 0, 0, 0);
-            mouse_event(up, 0, 0, 0, 0);
+            // Send mouse down
+            var downInput = new INPUT
+            {
+                type = INPUT_MOUSE,
+                mkhi = new MOUSEKEYBDHARDWAREINPUT
+                {
+                    mi = new MOUSEINPUT
+                    {
+                        dx = 0,
+                        dy = 0,
+                        dwFlags = downFlag,
+                        time = 0,
+                        dwExtraInfo = IntPtr.Zero,
+                        mouseData = 0
+                    }
+                }
+            };
+
+            // Send mouse up
+            var upInput = new INPUT
+            {
+                type = INPUT_MOUSE,
+                mkhi = new MOUSEKEYBDHARDWAREINPUT
+                {
+                    mi = new MOUSEINPUT
+                    {
+                        dx = 0,
+                        dy = 0,
+                        dwFlags = upFlag,
+                        time = 0,
+                        dwExtraInfo = IntPtr.Zero,
+                        mouseData = 0
+                    }
+                }
+            };
+
+            SendInput(1, new[] { downInput }, Marshal.SizeOf(typeof(INPUT)));
+            SendInput(1, new[] { upInput }, Marshal.SizeOf(typeof(INPUT)));
 
             if (i < count - 1)
             {
@@ -136,21 +187,60 @@ public class InputService
     }
 
     /// <summary>
-    /// Drag and drop from start to end position
+    /// Drag and drop from start to end position using SendInput
     /// </summary>
     public void DragMouse(int startX, int startY, int endX, int endY)
     {
+        // Move to start position
         MoveMouse(startX, startY);
         Thread.Sleep(50);
-        mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
+
+        // Mouse down at start position
+        var downInput = new INPUT
+        {
+            type = INPUT_MOUSE,
+            mkhi = new MOUSEKEYBDHARDWAREINPUT
+            {
+                mi = new MOUSEINPUT
+                {
+                    dx = 0,
+                    dy = 0,
+                    dwFlags = MOUSEEVENTF_LEFTDOWN,
+                    time = 0,
+                    dwExtraInfo = IntPtr.Zero,
+                    mouseData = 0
+                }
+            }
+        };
+        SendInput(1, new[] { downInput }, Marshal.SizeOf(typeof(INPUT)));
         Thread.Sleep(50);
+
+        // Move to end position
         MoveMouse(endX, endY);
         Thread.Sleep(50);
-        mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
+
+        // Mouse up at end position
+        var upInput = new INPUT
+        {
+            type = INPUT_MOUSE,
+            mkhi = new MOUSEKEYBDHARDWAREINPUT
+            {
+                mi = new MOUSEINPUT
+                {
+                    dx = 0,
+                    dy = 0,
+                    dwFlags = MOUSEEVENTF_LEFTUP,
+                    time = 0,
+                    dwExtraInfo = IntPtr.Zero,
+                    mouseData = 0
+                }
+            }
+        };
+        SendInput(1, new[] { upInput }, Marshal.SizeOf(typeof(INPUT)));
     }
 
     /// <summary>
-    /// Type text (simulates keystrokes for each character)
+    /// Type text (simulates keystrokes for each character) using SendInput
     /// </summary>
     public void TypeText(string text)
     {
@@ -161,7 +251,7 @@ public class InputService
     }
 
     /// <summary>
-    /// Send a single key
+    /// Send a single key using SendInput
     /// </summary>
     private void SendKey(char c)
     {
@@ -172,7 +262,7 @@ public class InputService
         {
             wVk = 0,
             wScan = c,
-            dwFlags = 0x0004, // KEYEVENTF_UNICODE
+            dwFlags = KEYEVENTF_UNICODE,
             time = 0,
             dwExtraInfo = IntPtr.Zero
         };
@@ -182,7 +272,7 @@ public class InputService
         {
             wVk = 0,
             wScan = c,
-            dwFlags = 0x0004 | KEYEVENTF_KEYUP,
+            dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP,
             time = 0,
             dwExtraInfo = IntPtr.Zero
         };
@@ -191,7 +281,7 @@ public class InputService
     }
 
     /// <summary>
-    /// Press a virtual key
+    /// Press a virtual key using SendInput
     /// </summary>
     public void PressKey(ushort virtualKey, KeyAction action = KeyAction.Click)
     {

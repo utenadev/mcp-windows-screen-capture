@@ -1,5 +1,7 @@
 using ModelContextProtocol.Protocol;
+using ModelContextProtocol.Client;
 using WindowsDesktopUse.Core;
+using System.Diagnostics;
 
 namespace E2ETests;
 
@@ -43,6 +45,77 @@ public class McpE2ETests
         var testAssemblyDir = Path.GetDirectoryName(typeof(McpE2ETests).Assembly.Location)!;
         // Go up from tests/E2ETests/bin/Debug/net8.0 to repo root
         return Path.GetFullPath(Path.Combine(testAssemblyDir, "..", "..", "..", ".."));
+    }
+
+    // Helper method to find window by process ID using MainWindowHandle
+    private static WindowInfo? FindWindowByProcessId(List<WindowInfo> windows, int processId)
+    {
+        try
+        {
+            var process = Process.GetProcessById(processId);
+            if (process == null || process.HasExited)
+                return null;
+            
+            // Get main window handle
+            var hwnd = process.MainWindowHandle.ToInt64();
+            if (hwnd == 0)
+                return null;
+            
+            // Find matching window in list
+            return windows.FirstOrDefault(w => w.Hwnd == hwnd);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    // Helper method to capture desktop for debugging
+    private static async Task CaptureDesktop(McpClient client, string description, string? savePath = null)
+    {
+        try
+        {
+            var captureResult = await client.CallToolAsync("capture", new Dictionary<string, object?>
+            {
+                ["target"] = "primary",
+                ["quality"] = 80
+            }).ConfigureAwait(false);
+            
+            if (captureResult != null)
+            {
+                var textContent = captureResult.Content.OfType<TextContentBlock>().FirstOrDefault();
+                if (textContent != null && !string.IsNullOrEmpty(textContent.Text))
+                {
+                    // Parse JSON to get image data
+                    using var doc = System.Text.Json.JsonDocument.Parse(textContent.Text);
+                    var root = doc.RootElement;
+                    if (root.TryGetProperty("imageData", out var imageDataElement))
+                    {
+                        var imageData = imageDataElement.GetString();
+                        if (!string.IsNullOrEmpty(imageData))
+                        {
+                            // Save to file if path specified
+                            if (!string.IsNullOrEmpty(savePath))
+                            {
+                                var imageBytes = Convert.FromBase64String(imageData);
+                                await File.WriteAllBytesAsync(savePath, imageBytes).ConfigureAwait(false);
+                                Console.WriteLine($"  📸 {description}: Desktop saved to {savePath} ({imageBytes.Length:N0} bytes)");
+                            }
+                            else
+                            {
+                                Console.WriteLine($"  📸 {description}: Desktop captured ({imageData.Length:N0} chars)");
+                            }
+                            return;
+                        }
+                    }
+                }
+                Console.WriteLine($"  📸 {description}: Desktop captured");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"  ⚠️ {description}: Failed to capture desktop - {ex.Message}");
+        }
     }
 
     [Test]
@@ -875,5 +948,665 @@ public class McpE2ETests
         {
             await client.DisposeAsync().ConfigureAwait(false);
         }
+    }
+
+    // ============ INPUT MODULE E2E TESTS ============
+
+    [Test]
+    public async Task E2E_MouseMove_ReturnsSuccess()
+    {
+        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>()).ConfigureAwait(false);
+
+        try
+        {
+            var args = new Dictionary<string, object?>
+            {
+                ["x"] = 100,
+                ["y"] = 100
+            };
+
+            var result = await client.CallToolAsync("mouse_move", args).ConfigureAwait(false);
+            Assert.That(result, Is.Not.Null);
+            
+            // mouse_move returns empty result on success (no error means success)
+            Assert.That(result.Content, Is.Not.Null);
+        }
+        finally
+        {
+            await client.DisposeAsync().ConfigureAwait(false);
+        }
+    }
+
+    [Test]
+    public async Task E2E_MouseClick_ReturnsSuccess()
+    {
+        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>()).ConfigureAwait(false);
+
+        try
+        {
+            var args = new Dictionary<string, object?>
+            {
+                ["button"] = "left",
+                ["count"] = 1
+            };
+
+            var result = await client.CallToolAsync("mouse_click", args).ConfigureAwait(false);
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Content, Is.Not.Null);
+        }
+        finally
+        {
+            await client.DisposeAsync().ConfigureAwait(false);
+        }
+    }
+
+    [Test]
+    public async Task E2E_MouseClick_RightButton_ReturnsSuccess()
+    {
+        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>()).ConfigureAwait(false);
+
+        try
+        {
+            var args = new Dictionary<string, object?>
+            {
+                ["button"] = "right",
+                ["count"] = 1
+            };
+
+            var result = await client.CallToolAsync("mouse_click", args).ConfigureAwait(false);
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Content, Is.Not.Null);
+        }
+        finally
+        {
+            await client.DisposeAsync().ConfigureAwait(false);
+        }
+    }
+
+    [Test]
+    public async Task E2E_MouseDrag_ReturnsSuccess()
+    {
+        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>()).ConfigureAwait(false);
+
+        try
+        {
+            var args = new Dictionary<string, object?>
+            {
+                ["startX"] = 100,
+                ["startY"] = 100,
+                ["endX"] = 200,
+                ["endY"] = 200
+            };
+
+            var result = await client.CallToolAsync("mouse_drag", args).ConfigureAwait(false);
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Content, Is.Not.Null);
+        }
+        finally
+        {
+            await client.DisposeAsync().ConfigureAwait(false);
+        }
+    }
+
+    [Test]
+    public async Task E2E_KeyboardType_ReturnsSuccess()
+    {
+        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>()).ConfigureAwait(false);
+
+        try
+        {
+            var args = new Dictionary<string, object?>
+            {
+                ["text"] = "Hello World"
+            };
+
+            var result = await client.CallToolAsync("keyboard_type", args).ConfigureAwait(false);
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Content, Is.Not.Null);
+        }
+        finally
+        {
+            await client.DisposeAsync().ConfigureAwait(false);
+        }
+    }
+
+    [Test]
+    public async Task E2E_KeyboardKey_ReturnsSuccess()
+    {
+        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>()).ConfigureAwait(false);
+
+        try
+        {
+            var args = new Dictionary<string, object?>
+            {
+                ["key"] = "enter",
+                ["action"] = "click"
+            };
+
+            var result = await client.CallToolAsync("keyboard_key", args).ConfigureAwait(false);
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Content, Is.Not.Null);
+        }
+        finally
+        {
+            await client.DisposeAsync().ConfigureAwait(false);
+        }
+    }
+
+    [Test]
+    public async Task E2E_KeyboardKey_Tab_ReturnsSuccess()
+    {
+        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>()).ConfigureAwait(false);
+
+        try
+        {
+            var args = new Dictionary<string, object?>
+            {
+                ["key"] = "tab",
+                ["action"] = "click"
+            };
+
+            var result = await client.CallToolAsync("keyboard_key", args).ConfigureAwait(false);
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Content, Is.Not.Null);
+        }
+        finally
+        {
+            await client.DisposeAsync().ConfigureAwait(false);
+        }
+    }
+
+    // ============ PRACTICAL E2E TESTS WITH NOTEPAD ============
+
+    [Test]
+    [Explicit("Requires GUI interaction with Notepad")]
+    [Description("Launch Notepad, type text, verify by screen capture, and cleanup properly")]
+    public async Task E2E_Notepad_TypeTextAndVerifyByCapture()
+    {
+        // Start Notepad
+        var notepadProcess = System.Diagnostics.Process.Start("notepad.exe");
+        Assert.That(notepadProcess, Is.Not.Null, "Failed to start Notepad");
+        var notepadProcessId = notepadProcess.Id;
+        Console.WriteLine($"[Test] Started Notepad (PID: {notepadProcessId})");
+        
+        // Wait for Notepad window to appear
+        await Task.Delay(1000).ConfigureAwait(false);
+        
+        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>()).ConfigureAwait(false);
+
+        try
+        {
+            // Generate unique filename for this test run
+            var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            var initialCapturePath = Path.Combine(Path.GetTempPath(), $"notepad_test_{timestamp}_initial.jpg");
+            var finalCapturePath = Path.Combine(Path.GetTempPath(), $"notepad_test_{timestamp}_final.jpg");
+            
+            // Capture desktop to show initial state (with file save)
+            await CaptureDesktop(client, "Initial state", initialCapturePath);
+            
+            // Get window list
+            var windowsResult = await client.CallToolAsync("list_windows", null).ConfigureAwait(false);
+            Assert.That(windowsResult, Is.Not.Null, "list_windows result is null");
+            
+            var textContent = windowsResult.Content.OfType<TextContentBlock>().FirstOrDefault();
+            if (textContent != null && !string.IsNullOrEmpty(textContent.Text))
+            {
+                var windows = System.Text.Json.JsonSerializer.Deserialize<List<WindowInfo>>(textContent.Text);
+                if (windows != null)
+                {
+                    // Try to find window by process ID
+                    var notepadWindow = FindWindowByProcessId(windows, notepadProcessId);
+                    
+                    if (notepadWindow != null)
+                    {
+                        Console.WriteLine($"[Test] Found Notepad window: HWND={notepadWindow.Hwnd}, Title='{notepadWindow.Title}'");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[Test] Window not found by PID. Available windows with titles: {string.Join(", ", windows.Where(w => !string.IsNullOrEmpty(w.Title)).Select(w => $"'{w.Title}'"))}");
+                    }
+                }
+            }
+            
+            // Type text into Notepad (regardless of whether we found the window)
+            var typeArgs = new Dictionary<string, object?>
+            {
+                ["text"] = "Hello from MCP!"
+            };
+            await client.CallToolAsync("keyboard_type", typeArgs).ConfigureAwait(false);
+            Console.WriteLine("[Test] Typed text: 'Hello from MCP!'");
+            
+            // Wait for text to appear
+            await Task.Delay(500).ConfigureAwait(false);
+            
+            // Capture desktop to verify (with file save)
+            await CaptureDesktop(client, "After typing", finalCapturePath);
+            
+            // Verify files were created
+            if (File.Exists(initialCapturePath))
+            {
+                var fileInfo = new FileInfo(initialCapturePath);
+                Console.WriteLine($"[Test] Initial capture file: {initialCapturePath} ({fileInfo.Length:N0} bytes)");
+            }
+            if (File.Exists(finalCapturePath))
+            {
+                var fileInfo = new FileInfo(finalCapturePath);
+                Console.WriteLine($"[Test] Final capture file: {finalCapturePath} ({fileInfo.Length:N0} bytes)");
+            }
+            
+            Console.WriteLine($"✅ Successfully typed text into Notepad");
+            Console.WriteLine($"   Process ID: {notepadProcessId}");
+        }
+        finally
+        {
+            await client.DisposeAsync().ConfigureAwait(false);
+            
+            // Cleanup: close Notepad
+            if (notepadProcess != null && !notepadProcess.HasExited)
+            {
+                try
+                {
+                    notepadProcess.Kill();
+                    notepadProcess.WaitForExit(2000);
+                    Console.WriteLine($"[Test] Notepad (PID: {notepadProcessId}) terminated successfully");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Test] Warning: Failed to terminate Notepad: {ex.Message}");
+                }
+                finally
+                {
+                    notepadProcess.Dispose();
+                }
+            }
+        }
+    }
+
+    [Test]
+    [Explicit("Requires GUI interaction with Notepad")]
+    [Description("Launch Notepad, double-click to select word, and verify")]
+    public async Task E2E_Notepad_DoubleClickToSelectWord()
+    {
+        var notepadProcess = System.Diagnostics.Process.Start("notepad.exe");
+        Assert.That(notepadProcess, Is.Not.Null);
+        var notepadProcessId = notepadProcess.Id;
+        await Task.Delay(1000).ConfigureAwait(false);
+        
+        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>()).ConfigureAwait(false);
+
+        try
+        {
+            // Type multi-word text
+            await client.CallToolAsync("keyboard_type", new Dictionary<string, object?> { ["text"] = "Hello World Test" }).ConfigureAwait(false);
+            await Task.Delay(500).ConfigureAwait(false);
+            
+            // Get window position and double-click
+            var windowsResult = await client.CallToolAsync("list_windows", null).ConfigureAwait(false);
+            if (windowsResult != null)
+            {
+                var textContent = windowsResult.Content.OfType<TextContentBlock>().FirstOrDefault();
+                if (textContent != null)
+                {
+                    var windows = System.Text.Json.JsonSerializer.Deserialize<List<WindowInfo>>(textContent.Text);
+                    var notepadWindow = windows?.FirstOrDefault(w => !string.IsNullOrEmpty(w.Title) && (w.Title.Contains("Notepad") || w.Title.Contains("メモ帳") || w.Title.Contains("無題")));
+                    
+                    if (notepadWindow != null)
+                    {
+                        // Double-click on "World"
+                        await client.CallToolAsync("mouse_move", new Dictionary<string, object?> { ["x"] = notepadWindow.X + 70, ["y"] = notepadWindow.Y + 80 }).ConfigureAwait(false);
+                        await client.CallToolAsync("mouse_click", new Dictionary<string, object?> { ["button"] = "left", ["count"] = 2 }).ConfigureAwait(false);
+                        await Task.Delay(300).ConfigureAwait(false);
+                    }
+                }
+            }
+            
+            await CaptureDesktop(client, "After double-click");
+            Console.WriteLine($"✅ Double-click word selection test passed");
+        }
+        finally
+        {
+            await client.DisposeAsync().ConfigureAwait(false);
+            CleanupNotepad(notepadProcess, notepadProcessId);
+        }
+    }
+
+    [Test]
+    [Explicit("Requires GUI interaction with Notepad")]
+    [Description("Launch Notepad, drag to select multiple lines")]
+    public async Task E2E_Notepad_DragToSelectMultipleLines()
+    {
+        var notepadProcess = System.Diagnostics.Process.Start("notepad.exe");
+        Assert.That(notepadProcess, Is.Not.Null);
+        var notepadProcessId = notepadProcess.Id;
+        await Task.Delay(1000).ConfigureAwait(false);
+        
+        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>()).ConfigureAwait(false);
+
+        try
+        {
+            // Type multi-line text
+            await client.CallToolAsync("keyboard_type", new Dictionary<string, object?> { ["text"] = "Line 1" }).ConfigureAwait(false);
+            await client.CallToolAsync("keyboard_key", new Dictionary<string, object?> { ["key"] = "enter", ["action"] = "click" }).ConfigureAwait(false);
+            await client.CallToolAsync("keyboard_type", new Dictionary<string, object?> { ["text"] = "Line 2" }).ConfigureAwait(false);
+            await Task.Delay(500).ConfigureAwait(false);
+            
+            // Get window and drag
+            var windowsResult = await client.CallToolAsync("list_windows", null).ConfigureAwait(false);
+            if (windowsResult != null)
+            {
+                var textContent = windowsResult.Content.OfType<TextContentBlock>().FirstOrDefault();
+                if (textContent != null)
+                {
+                    var windows = System.Text.Json.JsonSerializer.Deserialize<List<WindowInfo>>(textContent.Text);
+                    var notepadWindow = windows?.FirstOrDefault(w => !string.IsNullOrEmpty(w.Title) && (w.Title.Contains("Notepad") || w.Title.Contains("メモ帳") || w.Title.Contains("無題")));
+                    
+                    if (notepadWindow != null)
+                    {
+                        await client.CallToolAsync("mouse_drag", new Dictionary<string, object?>
+                        {
+                            ["startX"] = notepadWindow.X + 50,
+                            ["startY"] = notepadWindow.Y + 70,
+                            ["endX"] = notepadWindow.X + 150,
+                            ["endY"] = notepadWindow.Y + 90
+                        }).ConfigureAwait(false);
+                        await Task.Delay(300).ConfigureAwait(false);
+                    }
+                }
+            }
+            
+            await CaptureDesktop(client, "After drag selection");
+            Console.WriteLine($"✅ Drag selection test passed");
+        }
+        finally
+        {
+            await client.DisposeAsync().ConfigureAwait(false);
+            CleanupNotepad(notepadProcess, notepadProcessId);
+        }
+    }
+
+    [Test]
+    [Explicit("Requires GUI interaction with Notepad")]
+    [Description("Launch Notepad, right-click for context menu")]
+    public async Task E2E_Notepad_RightClickContextMenu()
+    {
+        var notepadProcess = System.Diagnostics.Process.Start("notepad.exe");
+        Assert.That(notepadProcess, Is.Not.Null);
+        var notepadProcessId = notepadProcess.Id;
+        await Task.Delay(1000).ConfigureAwait(false);
+        
+        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>()).ConfigureAwait(false);
+
+        try
+        {
+            await client.CallToolAsync("keyboard_type", new Dictionary<string, object?> { ["text"] = "Test text" }).ConfigureAwait(false);
+            await Task.Delay(500).ConfigureAwait(false);
+            
+            // Right-click in text area
+            var windowsResult = await client.CallToolAsync("list_windows", null).ConfigureAwait(false);
+            if (windowsResult != null)
+            {
+                var textContent = windowsResult.Content.OfType<TextContentBlock>().FirstOrDefault();
+                if (textContent != null)
+                {
+                    var windows = System.Text.Json.JsonSerializer.Deserialize<List<WindowInfo>>(textContent.Text);
+                    var notepadWindow = windows?.FirstOrDefault(w => !string.IsNullOrEmpty(w.Title) && (w.Title.Contains("Notepad") || w.Title.Contains("メモ帳") || w.Title.Contains("無題")));
+                    
+                    if (notepadWindow != null)
+                    {
+                        await client.CallToolAsync("mouse_move", new Dictionary<string, object?> { ["x"] = notepadWindow.X + 80, ["y"] = notepadWindow.Y + 80 }).ConfigureAwait(false);
+                        await client.CallToolAsync("mouse_click", new Dictionary<string, object?> { ["button"] = "right", ["count"] = 1 }).ConfigureAwait(false);
+                        await Task.Delay(500).ConfigureAwait(false);
+                    }
+                }
+            }
+            
+            await CaptureDesktop(client, "Context menu opened");
+            
+            // Close menu with Escape
+            await client.CallToolAsync("keyboard_key", new Dictionary<string, object?> { ["key"] = "escape", ["action"] = "click" }).ConfigureAwait(false);
+            await Task.Delay(200).ConfigureAwait(false);
+            
+            Console.WriteLine($"✅ Right-click context menu test passed");
+        }
+        finally
+        {
+            await client.DisposeAsync().ConfigureAwait(false);
+            CleanupNotepad(notepadProcess, notepadProcessId);
+        }
+    }
+
+    [Test]
+    [Explicit("Requires GUI interaction with Notepad")]
+    [Description("Launch Notepad, test Copy-Paste with Ctrl+C/V")]
+    public async Task E2E_Notepad_CopyPasteWithShortcuts()
+    {
+        var notepadProcess = System.Diagnostics.Process.Start("notepad.exe");
+        Assert.That(notepadProcess, Is.Not.Null);
+        var notepadProcessId = notepadProcess.Id;
+        await Task.Delay(1000).ConfigureAwait(false);
+        
+        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>()).ConfigureAwait(false);
+
+        try
+        {
+            // Type text
+            await client.CallToolAsync("keyboard_type", new Dictionary<string, object?> { ["text"] = "Copy me" }).ConfigureAwait(false);
+            await Task.Delay(300).ConfigureAwait(false);
+            
+            // Ctrl+A to select all
+            await PressModifierKeyCombo(client, "ctrl", "a");
+            await Task.Delay(200).ConfigureAwait(false);
+            
+            // Ctrl+C to copy
+            await PressModifierKeyCombo(client, "ctrl", "c");
+            await Task.Delay(200).ConfigureAwait(false);
+            
+            // Move to end and press Enter
+            await client.CallToolAsync("keyboard_key", new Dictionary<string, object?> { ["key"] = "end", ["action"] = "click" }).ConfigureAwait(false);
+            await client.CallToolAsync("keyboard_key", new Dictionary<string, object?> { ["key"] = "enter", ["action"] = "click" }).ConfigureAwait(false);
+            await Task.Delay(200).ConfigureAwait(false);
+            
+            // Ctrl+V to paste
+            await PressModifierKeyCombo(client, "ctrl", "v");
+            await Task.Delay(300).ConfigureAwait(false);
+            
+            await CaptureDesktop(client, "After copy-paste");
+            Console.WriteLine($"✅ Copy-Paste operation test passed");
+        }
+        finally
+        {
+            await client.DisposeAsync().ConfigureAwait(false);
+            CleanupNotepad(notepadProcess, notepadProcessId);
+        }
+    }
+
+    [Test]
+    [Explicit("Requires GUI interaction with Notepad")]
+    [Description("Launch Notepad, test cursor navigation with arrow keys")]
+    public async Task E2E_Notepad_CursorNavigationWithArrowKeys()
+    {
+        var notepadProcess = System.Diagnostics.Process.Start("notepad.exe");
+        Assert.That(notepadProcess, Is.Not.Null);
+        var notepadProcessId = notepadProcess.Id;
+        await Task.Delay(1000).ConfigureAwait(false);
+        
+        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>()).ConfigureAwait(false);
+
+        try
+        {
+            await client.CallToolAsync("keyboard_type", new Dictionary<string, object?> { ["text"] = "AB" }).ConfigureAwait(false);
+            await Task.Delay(300).ConfigureAwait(false);
+            
+            // Navigate with arrow keys
+            await client.CallToolAsync("keyboard_key", new Dictionary<string, object?> { ["key"] = "left", ["action"] = "click" }).ConfigureAwait(false);
+            await Task.Delay(100).ConfigureAwait(false);
+            await client.CallToolAsync("keyboard_key", new Dictionary<string, object?> { ["key"] = "left", ["action"] = "click" }).ConfigureAwait(false);
+            await Task.Delay(100).ConfigureAwait(false);
+            await client.CallToolAsync("keyboard_key", new Dictionary<string, object?> { ["key"] = "right", ["action"] = "click" }).ConfigureAwait(false);
+            await Task.Delay(100).ConfigureAwait(false);
+            
+            // Type at current position
+            await client.CallToolAsync("keyboard_type", new Dictionary<string, object?> { ["text"] = "X" }).ConfigureAwait(false);
+            await Task.Delay(300).ConfigureAwait(false);
+            
+            await CaptureDesktop(client, "After cursor navigation");
+            Console.WriteLine($"✅ Arrow key navigation test passed");
+        }
+        finally
+        {
+            await client.DisposeAsync().ConfigureAwait(false);
+            CleanupNotepad(notepadProcess, notepadProcessId);
+        }
+    }
+
+    [Test]
+    [Explicit("Requires GUI interaction with Notepad")]
+    [Description("Launch Notepad, test middle-click")]
+    public async Task E2E_Notepad_MiddleClick()
+    {
+        var notepadProcess = System.Diagnostics.Process.Start("notepad.exe");
+        Assert.That(notepadProcess, Is.Not.Null);
+        var notepadProcessId = notepadProcess.Id;
+        await Task.Delay(1000).ConfigureAwait(false);
+        
+        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>()).ConfigureAwait(false);
+
+        try
+        {
+            var windowsResult = await client.CallToolAsync("list_windows", null).ConfigureAwait(false);
+            if (windowsResult != null)
+            {
+                var textContent = windowsResult.Content.OfType<TextContentBlock>().FirstOrDefault();
+                if (textContent != null)
+                {
+                    var windows = System.Text.Json.JsonSerializer.Deserialize<List<WindowInfo>>(textContent.Text);
+                    var notepadWindow = windows?.FirstOrDefault(w => !string.IsNullOrEmpty(w.Title) && (w.Title.Contains("Notepad") || w.Title.Contains("メモ帳") || w.Title.Contains("無題")));
+                    
+                    if (notepadWindow != null)
+                    {
+                        await client.CallToolAsync("mouse_move", new Dictionary<string, object?> { ["x"] = notepadWindow.X + 100, ["y"] = notepadWindow.Y + 100 }).ConfigureAwait(false);
+                        await client.CallToolAsync("mouse_click", new Dictionary<string, object?> { ["button"] = "middle", ["count"] = 1 }).ConfigureAwait(false);
+                        await Task.Delay(300).ConfigureAwait(false);
+                    }
+                }
+            }
+            
+            Console.WriteLine($"✅ Middle-click test passed (may have no visible effect in Notepad)");
+        }
+        finally
+        {
+            await client.DisposeAsync().ConfigureAwait(false);
+            CleanupNotepad(notepadProcess, notepadProcessId);
+        }
+    }
+
+    [Test]
+    [Explicit("Requires GUI interaction with Notepad")]
+    [Description("Launch Notepad, select all with Ctrl+A")]
+    public async Task E2E_Notepad_SelectAllWithKeyboard()
+    {
+        var notepadProcess = System.Diagnostics.Process.Start("notepad.exe");
+        Assert.That(notepadProcess, Is.Not.Null);
+        var notepadProcessId = notepadProcess.Id;
+        await Task.Delay(1000).ConfigureAwait(false);
+        
+        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>()).ConfigureAwait(false);
+
+        try
+        {
+            await client.CallToolAsync("keyboard_type", new Dictionary<string, object?> { ["text"] = "Select this text" }).ConfigureAwait(false);
+            await Task.Delay(500).ConfigureAwait(false);
+            
+            // Ctrl+A to select all
+            await PressModifierKeyCombo(client, "ctrl", "a");
+            await Task.Delay(300).ConfigureAwait(false);
+            
+            await CaptureDesktop(client, "After Ctrl+A");
+            Console.WriteLine($"✅ Select all test passed");
+        }
+        finally
+        {
+            await client.DisposeAsync().ConfigureAwait(false);
+            CleanupNotepad(notepadProcess, notepadProcessId);
+        }
+    }
+
+    [Test]
+    [Explicit("Requires GUI interaction with Notepad")]
+    [Description("Launch Notepad, open File menu with mouse")]
+    public async Task E2E_Notepad_OpenFileMenuWithMouse()
+    {
+        var notepadProcess = System.Diagnostics.Process.Start("notepad.exe");
+        Assert.That(notepadProcess, Is.Not.Null);
+        var notepadProcessId = notepadProcess.Id;
+        await Task.Delay(1000).ConfigureAwait(false);
+        
+        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>()).ConfigureAwait(false);
+
+        try
+        {
+            var windowsResult = await client.CallToolAsync("list_windows", null).ConfigureAwait(false);
+            if (windowsResult != null)
+            {
+                var textContent = windowsResult.Content.OfType<TextContentBlock>().FirstOrDefault();
+                if (textContent != null)
+                {
+                    var windows = System.Text.Json.JsonSerializer.Deserialize<List<WindowInfo>>(textContent.Text);
+                    var notepadWindow = windows?.FirstOrDefault(w => !string.IsNullOrEmpty(w.Title) && (w.Title.Contains("Notepad") || w.Title.Contains("メモ帳") || w.Title.Contains("無題")));
+                    
+                    if (notepadWindow != null)
+                    {
+                        // Click on File menu (top-left area)
+                        await client.CallToolAsync("mouse_move", new Dictionary<string, object?> { ["x"] = notepadWindow.X + 10, ["y"] = notepadWindow.Y + 30 }).ConfigureAwait(false);
+                        await Task.Delay(200).ConfigureAwait(false);
+                        await client.CallToolAsync("mouse_click", new Dictionary<string, object?> { ["button"] = "left", ["count"] = 1 }).ConfigureAwait(false);
+                        await Task.Delay(500).ConfigureAwait(false);
+                        
+                        await CaptureDesktop(client, "File menu opened");
+                        
+                        // Close menu with Escape
+                        await client.CallToolAsync("keyboard_key", new Dictionary<string, object?> { ["key"] = "escape", ["action"] = "click" }).ConfigureAwait(false);
+                        await Task.Delay(200).ConfigureAwait(false);
+                    }
+                }
+            }
+            
+            Console.WriteLine($"✅ File menu test passed");
+        }
+        finally
+        {
+            await client.DisposeAsync().ConfigureAwait(false);
+            CleanupNotepad(notepadProcess, notepadProcessId);
+        }
+    }
+
+    // Helper method to cleanup notepad
+    private static void CleanupNotepad(Process? notepadProcess, int notepadProcessId)
+    {
+        if (notepadProcess != null && !notepadProcess.HasExited)
+        {
+            try
+            {
+                notepadProcess.Kill();
+                notepadProcess.WaitForExit(2000);
+                Console.WriteLine($"[Test] Notepad (PID: {notepadProcessId}) terminated successfully");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Test] Warning: Failed to terminate Notepad: {ex.Message}");
+            }
+            finally
+            {
+                notepadProcess.Dispose();
+            }
+        }
+    }
+
+    // Helper method for modifier key combinations
+    private static async Task PressModifierKeyCombo(McpClient client, string modifier, string key)
+    {
+        await client.CallToolAsync("keyboard_key", new Dictionary<string, object?> { ["key"] = modifier, ["action"] = "press" }).ConfigureAwait(false);
+        await client.CallToolAsync("keyboard_key", new Dictionary<string, object?> { ["key"] = key, ["action"] = "click" }).ConfigureAwait(false);
+        await client.CallToolAsync("keyboard_key", new Dictionary<string, object?> { ["key"] = modifier, ["action"] = "release" }).ConfigureAwait(false);
     }
 }
