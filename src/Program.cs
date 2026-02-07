@@ -1,11 +1,5 @@
 using System.CommandLine;
 using System.Runtime.InteropServices;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using ModelContextProtocol;
-using ModelContextProtocol.Server;
 
 [DllImport("user32.dll")] static extern bool SetProcessDPIAware();
 
@@ -29,28 +23,29 @@ rootCmd.AddOption(desktopOption);
 rootCmd.AddOption(httpPortOption);
 rootCmd.AddOption(testOption);
 
-rootCmd.SetHandler((desktop, httpPort, testWhisper) => {
+rootCmd.SetHandler((desktop, httpPort, testWhisper) =>
+{
     SetProcessDPIAware();
-    
+
     var captureService = new ScreenCaptureService(desktop);
     captureService.InitializeMonitors();
     ScreenCaptureTools.SetCaptureService(captureService);
-    
+
     // Initialize audio capture service
     var audioCaptureService = new AudioCaptureService();
     ScreenCaptureTools.SetAudioCaptureService(audioCaptureService);
-    
+
     // Initialize Whisper transcription service
     var whisperService = new WhisperTranscriptionService();
     ScreenCaptureTools.SetWhisperService(whisperService);
-    
+
     // Test mode for debugging Whisper
     if (testWhisper)
     {
         Console.Error.WriteLine("[TEST] Testing Whisper transcription...");
         Console.Error.WriteLine("[TEST] Please play audio on YouTube! Starting in 3 seconds...");
         Thread.Sleep(3000);
-        
+
         try
         {
             var result = ScreenCaptureTools.Listen(
@@ -59,7 +54,7 @@ rootCmd.SetHandler((desktop, httpPort, testWhisper) => {
                 language: "ja",  // 日本語固定
                 modelSize: "small",  // Small model: 244MB, 高精度
                 translate: false);
-            
+
             Console.Error.WriteLine($"[TEST] ========================================");
             Console.Error.WriteLine($"[TEST] 検出言語: {result.Language}");
             Console.Error.WriteLine($"[TEST] セグメント数: {result.Segments.Count}");
@@ -82,19 +77,20 @@ rootCmd.SetHandler((desktop, httpPort, testWhisper) => {
             Console.Error.WriteLine($"[TEST] Message: {ex.Message}");
             Console.Error.WriteLine($"[TEST] Stack: {ex.StackTrace}");
         }
-        
+
         return;
     }
-    
+
     Console.Error.WriteLine("[Stdio] MCP Windows Screen Capture Server started in stdio mode");
-    
+
     // Start HTTP server for frame streaming if port is specified
-    if (httpPort > 0) {
+    if (httpPort > 0)
+    {
         _ = StartHttpServer(captureService, httpPort);
         Console.Error.WriteLine($"[HTTP] Frame streaming server started on http://localhost:{httpPort}");
         Console.Error.WriteLine($"[HTTP] Endpoint: http://localhost:{httpPort}/frame/{{sessionId}}");
     }
-    
+
     var builder = Host.CreateApplicationBuilder();
     // Disable logging to stdout for MCP stdio protocol compliance
     builder.Logging.ClearProviders();
@@ -103,47 +99,57 @@ rootCmd.SetHandler((desktop, httpPort, testWhisper) => {
         .AddMcpServer()
         .WithStdioServerTransport()
         .WithToolsFromAssembly(typeof(ScreenCaptureTools).Assembly);
-    
+
     var host = builder.Build();
     host.Run();
 }, desktopOption, httpPortOption, testOption);
 
-await rootCmd.InvokeAsync(args);
+await rootCmd.InvokeAsync(args).ConfigureAwait(false);
 
-static async Task StartHttpServer(ScreenCaptureService captureService, int port) {
+static async Task StartHttpServer(ScreenCaptureService captureService, int port)
+{
     var builder = WebApplication.CreateBuilder();
     builder.Logging.ClearProviders();
     builder.Services.AddSingleton(captureService);
-    
+
     var app = builder.Build();
-    
+
     // Endpoint to get latest frame as JPEG image
-    app.MapGet("/frame/{sessionId}", (string sessionId, ScreenCaptureService svc) => {
-        if (!svc.TryGetSession(sessionId, out var session) || session == null) {
+    app.MapGet("/frame/{sessionId}", (string sessionId, ScreenCaptureService svc) =>
+    {
+        if (!svc.TryGetSession(sessionId, out var session) || session == null)
+        {
             return Results.NotFound(new { error = "Session not found" });
         }
-        
+
         var frameData = session.LatestFrame;
-        if (string.IsNullOrEmpty(frameData)) {
+        if (string.IsNullOrEmpty(frameData))
+        {
             return Results.NotFound(new { error = "No frame captured yet" });
         }
-        
-        try {
+
+        try
+        {
             // Convert base64 to binary
             var imageBytes = Convert.FromBase64String(frameData);
             return Results.Bytes(imageBytes, "image/jpeg");
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             return Results.Problem($"Failed to decode image: {ex.Message}");
         }
     });
-    
+
     // Endpoint to get frame info (hash, timestamp) without image data
-    app.MapGet("/frame/{sessionId}/info", (string sessionId, ScreenCaptureService svc) => {
-        if (!svc.TryGetSession(sessionId, out var session) || session == null) {
+    app.MapGet("/frame/{sessionId}/info", (string sessionId, ScreenCaptureService svc) =>
+    {
+        if (!svc.TryGetSession(sessionId, out var session) || session == null)
+        {
             return Results.NotFound(new { error = "Session not found" });
         }
-        
-        return Results.Ok(new {
+
+        return Results.Ok(new
+        {
             sessionId = sessionId,
             hasFrame = !string.IsNullOrEmpty(session.LatestFrame),
             hash = session.LastFrameHash,
@@ -152,22 +158,24 @@ static async Task StartHttpServer(ScreenCaptureService captureService, int port)
             interval = session.Interval
         });
     });
-    
+
     // Health check
     app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
-    
+
     // Root endpoint with usage info
-    app.MapGet("/", () => Results.Ok(new {
+    app.MapGet("/", () => Results.Ok(new
+    {
         message = "MCP Screen Capture HTTP Server",
-        endpoints = new {
+        endpoints = new
+        {
             frame = "/frame/{sessionId} - Get latest frame as JPEG image",
             frameInfo = "/frame/{sessionId}/info - Get frame metadata (hash, timestamp)",
             health = "/health - Health check"
         },
         usage = "Use start_watching tool to create a session, then access /frame/{sessionId}"
     }));
-    
-    await app.RunAsync($"http://localhost:{port}");
+
+    await app.RunAsync($"http://localhost:{port}").ConfigureAwait(false);
 }
 
 // Custom logger that writes to stderr to avoid polluting stdout (MCP stdio protocol)

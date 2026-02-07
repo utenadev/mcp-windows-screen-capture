@@ -39,9 +39,9 @@ public interface ICaptureService
 public class ModernCaptureService : ICaptureService, IDisposable
 {
     public string ApiName => "Windows.Graphics.Capture (Stub)";
-    
-    public bool IsAvailable 
-    { 
+
+    public bool IsAvailable
+    {
         get
         {
             // Check if Windows.Graphics.Capture is supported
@@ -78,9 +78,9 @@ public class ModernCaptureService : ICaptureService, IDisposable
 
     [DllImport("user32.dll")]
     private static extern bool EnumDisplayMonitors(IntPtr hdc, IntPtr lprcClip, MonitorEnumProc lpfnEnum, IntPtr dwData);
-    
+
     private delegate bool MonitorEnumProc(IntPtr hMonitor, IntPtr hdcMonitor, ref Rect lprcMonitor, IntPtr dwData);
-    
+
     [StructLayout(LayoutKind.Sequential)]
     private struct Rect
     {
@@ -144,7 +144,7 @@ public class HybridCaptureService : ICaptureService
         {
             try
             {
-                var result = await _modern!.CaptureWindowAsync(hwnd, ct);
+                var result = await _modern!.CaptureWindowAsync(hwnd, ct).ConfigureAwait(false);
                 if (result != null)
                     return result;
             }
@@ -165,7 +165,7 @@ public class HybridCaptureService : ICaptureService
         {
             try
             {
-                var result = await _modern!.CaptureMonitorAsync(monitorIndex, ct);
+                var result = await _modern!.CaptureMonitorAsync(monitorIndex, ct).ConfigureAwait(false);
                 if (result != null)
                     return result;
             }
@@ -198,12 +198,12 @@ public class HybridCaptureService : ICaptureService
         // Use existing capture logic from ScreenCaptureTools
         var hwndLong = hwnd.ToInt64();
         var imageData = _legacy.CaptureWindow(hwndLong, 1920, 80);
-        
+
         // Convert base64 to bitmap
-        var base64Data = imageData.Contains(";base64,") 
-            ? imageData.Split(',')[1] 
+        var base64Data = imageData.Contains(";base64,")
+            ? imageData.Split(',')[1]
             : imageData;
-        
+
         var bytes = Convert.FromBase64String(base64Data);
         using var ms = new MemoryStream(bytes);
         return new Bitmap(ms);
@@ -213,12 +213,12 @@ public class HybridCaptureService : ICaptureService
     {
         // Use existing capture logic from ScreenCaptureService
         var imageData = _legacy.CaptureSingle(monitorIndex, 1920, 80);
-        
+
         // Convert base64 to bitmap
-        var base64Data = imageData.Contains(";base64,") 
-            ? imageData.Split(',')[1] 
+        var base64Data = imageData.Contains(";base64,")
+            ? imageData.Split(',')[1]
             : imageData;
-        
+
         var bytes = Convert.FromBase64String(base64Data);
         using var ms = new MemoryStream(bytes);
         return new Bitmap(ms);

@@ -1,6 +1,6 @@
+using NAudio.Wave;
 using Whisper.net;
 using Whisper.net.Ggml;
-using NAudio.Wave;
 
 /// <summary>
 /// Whisper model sizes and their characteristics
@@ -67,7 +67,7 @@ public class WhisperTranscriptionService : IDisposable
     public async Task EnsureModelExistsAsync(WhisperModelSize size, CancellationToken ct = default)
     {
         var modelPath = GetModelPath(size);
-        
+
         if (File.Exists(modelPath))
         {
             Console.WriteLine($"[Whisper] Model already exists: {modelPath}");
@@ -75,7 +75,7 @@ public class WhisperTranscriptionService : IDisposable
         }
 
         Console.WriteLine($"[Whisper] Downloading model: {size}...");
-        
+
         var ggmlType = size switch
         {
             WhisperModelSize.Tiny => GgmlType.Tiny,
@@ -89,11 +89,11 @@ public class WhisperTranscriptionService : IDisposable
         try
         {
             using var modelStream = await WhisperGgmlDownloader.Default
-                .GetGgmlModelAsync(ggmlType, QuantizationType.Q5_0, ct);
-            
+                .GetGgmlModelAsync(ggmlType, QuantizationType.Q5_0, ct).ConfigureAwait(false);
+
             using var fileWriter = File.OpenWrite(modelPath);
-            await modelStream.CopyToAsync(fileWriter, ct);
-            
+            await modelStream.CopyToAsync(fileWriter, ct).ConfigureAwait(false);
+
             Console.WriteLine($"[Whisper] Model downloaded successfully: {modelPath}");
         }
         catch (Exception ex)
@@ -113,12 +113,12 @@ public class WhisperTranscriptionService : IDisposable
             return; // Already loaded
         }
 
-        await EnsureModelExistsAsync(size, ct);
-        
+        await EnsureModelExistsAsync(size, ct).ConfigureAwait(false);
+
         var modelPath = GetModelPath(size);
         _whisperFactory = WhisperFactory.FromPath(modelPath);
         _loadedModelSize = size;
-        
+
         Console.WriteLine($"[Whisper] Model loaded: {size}");
     }
 
@@ -128,15 +128,15 @@ public class WhisperTranscriptionService : IDisposable
     private string ConvertToWhisperFormat(string inputPath)
     {
         var outputPath = Path.Combine(Path.GetTempPath(), $"whisper_converted_{Guid.NewGuid()}.wav");
-        
+
         using var reader = new AudioFileReader(inputPath);
-        
+
         // Resample to 16kHz, 16bit, mono
         var targetFormat = new WaveFormat(16000, 16, 1);
         using var resampler = new MediaFoundationResampler(reader, targetFormat);
-        
+
         WaveFileWriter.CreateWaveFile(outputPath, resampler);
-        
+
         return outputPath;
     }
 
@@ -151,7 +151,7 @@ public class WhisperTranscriptionService : IDisposable
         CancellationToken ct = default)
     {
         // Load model
-        await LoadModelAsync(modelSize, ct);
+        await LoadModelAsync(modelSize, ct).ConfigureAwait(false);
 
         if (_whisperFactory == null)
         {
@@ -160,28 +160,28 @@ public class WhisperTranscriptionService : IDisposable
 
         // Convert to Whisper-compatible format
         var convertedPath = ConvertToWhisperFormat(audioPath);
-        
+
         var segments = new List<TranscriptionSegment>();
         var detectedLanguage = language ?? "auto";
-        
+
         var builder = _whisperFactory.CreateBuilder();
-        
+
         // Set language if specified
         if (!string.IsNullOrEmpty(language))
         {
             builder.WithLanguage(language);
         }
-        
+
         // Enable translation if requested
         if (translateToEnglish)
         {
             builder.WithTranslate();
         }
-        
+
         using var processor = builder.Build();
 
         using var fileStream = File.OpenRead(convertedPath);
-        
+
         try
         {
             await foreach (var result in processor.ProcessAsync(fileStream, ct))
@@ -193,7 +193,7 @@ public class WhisperTranscriptionService : IDisposable
                     result.Probability,
                     detectedLanguage
                 ));
-                
+
                 // Update detected language from first segment if auto-detect
                 if (language == null && detectedLanguage == "auto")
                 {
@@ -211,8 +211,8 @@ public class WhisperTranscriptionService : IDisposable
             catch { }
         }
 
-        var duration = segments.Count > 0 
-            ? segments.Last().End 
+        var duration = segments.Count > 0
+            ? segments.Last().End
             : TimeSpan.Zero;
 
         return new TranscriptionResult(
@@ -238,8 +238,8 @@ public class WhisperTranscriptionService : IDisposable
         var tempPath = Path.Combine(Path.GetTempPath(), $"whisper_input_{Guid.NewGuid()}.wav");
         try
         {
-            await File.WriteAllBytesAsync(tempPath, audioData, ct);
-            return await TranscribeFileAsync(tempPath, language, modelSize, translateToEnglish, ct);
+            await File.WriteAllBytesAsync(tempPath, audioData, ct).ConfigureAwait(false);
+            return await TranscribeFileAsync(tempPath, language, modelSize, translateToEnglish, ct).ConfigureAwait(false);
         }
         finally
         {

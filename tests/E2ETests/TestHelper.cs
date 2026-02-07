@@ -1,4 +1,3 @@
-using System.ComponentModel;
 using ModelContextProtocol.Client;
 
 public record WindowInfo(long Hwnd, string Title, int W, int H, int X, int Y);
@@ -16,7 +15,7 @@ public static class TestHelper
             Arguments = args
         });
 
-        var client = await McpClient.CreateAsync(serverTransport);
+        var client = await McpClient.CreateAsync(serverTransport).ConfigureAwait(false);
 
         return client;
     }

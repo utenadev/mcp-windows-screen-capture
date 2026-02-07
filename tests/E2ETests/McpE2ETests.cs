@@ -1,5 +1,4 @@
 using ModelContextProtocol.Protocol;
-using NUnit.Framework;
 
 namespace E2ETests;
 
@@ -7,15 +6,15 @@ namespace E2ETests;
 public class McpE2ETests
 {
     private static string ServerPath => GetServerPath();
-    
+
     private static string GetServerPath()
     {
         // Use GITHUB_WORKSPACE if available (GitHub Actions environment)
         var githubWorkspace = Environment.GetEnvironmentVariable("GITHUB_WORKSPACE");
-        var repoRoot = !string.IsNullOrEmpty(githubWorkspace) 
-            ? githubWorkspace 
+        var repoRoot = !string.IsNullOrEmpty(githubWorkspace)
+            ? githubWorkspace
             : GetRepoRootFromAssembly();
-        
+
         // Check multiple possible locations
         var possiblePaths = new[]
         {
@@ -25,7 +24,7 @@ public class McpE2ETests
             // Local development fallback
             @"C:\workspace\mcp-windows-screen-capture\src\bin\Release\net8.0-windows\win-x64\WindowsScreenCaptureServer.exe"
         };
-        
+
         foreach (var path in possiblePaths)
         {
             var fullPath = Path.GetFullPath(path);
@@ -34,10 +33,10 @@ public class McpE2ETests
                 return fullPath;
             }
         }
-        
+
         throw new FileNotFoundException($"WindowsScreenCaptureServer.exe not found. Checked paths:\n{string.Join("\n", possiblePaths.Select(p => Path.GetFullPath(p)))}\n\nPlease build the project first.");
     }
-    
+
     private static string GetRepoRootFromAssembly()
     {
         var testAssemblyDir = Path.GetDirectoryName(typeof(McpE2ETests).Assembly.Location)!;
@@ -48,45 +47,45 @@ public class McpE2ETests
     [Test]
     public async Task E2E_ListMonitors_ReturnsValidMonitors()
     {
-        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>());
+        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>()).ConfigureAwait(false);
 
         try
         {
-            var tools = await client.ListToolsAsync();
+            var tools = await client.ListToolsAsync().ConfigureAwait(false);
             Assert.That(tools, Is.Not.Null);
 
             var listMonitorsTool = tools.FirstOrDefault(t => t.Name == "list_monitors");
             Assert.That(listMonitorsTool, Is.Not.Null, "list_monitors tool not found");
 
-            var result = await client.CallToolAsync("list_monitors", null);
+            var result = await client.CallToolAsync("list_monitors", null).ConfigureAwait(false);
             Assert.That(result, Is.Not.Null);
         }
         finally
         {
-            await client.DisposeAsync();
+            await client.DisposeAsync().ConfigureAwait(false);
         }
     }
 
     [Test]
     public async Task E2E_ListWindows_ReturnsValidWindows()
     {
-        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>());
+        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>()).ConfigureAwait(false);
 
         try
         {
-            var result = await client.CallToolAsync("list_windows", null);
+            var result = await client.CallToolAsync("list_windows", null).ConfigureAwait(false);
             Assert.That(result, Is.Not.Null);
         }
         finally
         {
-            await client.DisposeAsync();
+            await client.DisposeAsync().ConfigureAwait(false);
         }
     }
 
     [Test]
     public async Task E2E_SeeMonitor_ReturnsValidImage()
     {
-        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>());
+        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>()).ConfigureAwait(false);
 
         try
         {
@@ -98,7 +97,7 @@ public class McpE2ETests
                 ["maxWidth"] = 1920
             };
 
-            var result = await client.CallToolAsync("see", args);
+            var result = await client.CallToolAsync("see", args).ConfigureAwait(false);
             Assert.That(result, Is.Not.Null);
 
             var imageContent = result.Content.OfType<ImageContentBlock>().FirstOrDefault();
@@ -109,7 +108,7 @@ public class McpE2ETests
         }
         finally
         {
-            await client.DisposeAsync();
+            await client.DisposeAsync().ConfigureAwait(false);
         }
     }
 
@@ -117,11 +116,11 @@ public class McpE2ETests
     [Ignore("Window capture may fail due to OS-specific visibility checks")]
     public async Task E2E_CaptureWindow_ReturnsValidImage()
     {
-        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>());
+        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>()).ConfigureAwait(false);
 
         try
         {
-            var windowsResult = await client.CallToolAsync("list_windows", null);
+            var windowsResult = await client.CallToolAsync("list_windows", null).ConfigureAwait(false);
             Assert.That(windowsResult, Is.Not.Null, "list_windows failed");
 
             var textContent = windowsResult.Content.OfType<TextContentBlock>().FirstOrDefault();
@@ -140,7 +139,7 @@ public class McpE2ETests
                 ["maxWidth"] = 1920
             };
 
-            var result = await client.CallToolAsync("capture_window", args);
+            var result = await client.CallToolAsync("capture_window", args).ConfigureAwait(false);
             Assert.That(result, Is.Not.Null);
 
             var imageContent = result.Content.OfType<ImageContentBlock>().FirstOrDefault();
@@ -156,14 +155,14 @@ public class McpE2ETests
         }
         finally
         {
-            await client.DisposeAsync();
+            await client.DisposeAsync().ConfigureAwait(false);
         }
     }
 
     [Test]
     public async Task E2E_CaptureRegion_ReturnsValidImage()
     {
-        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>());
+        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>()).ConfigureAwait(false);
 
         try
         {
@@ -177,7 +176,7 @@ public class McpE2ETests
                 ["maxWidth"] = 1920
             };
 
-            var result = await client.CallToolAsync("capture_region", args);
+            var result = await client.CallToolAsync("capture_region", args).ConfigureAwait(false);
             Assert.That(result, Is.Not.Null);
 
             var imageContent = result.Content.OfType<ImageContentBlock>().FirstOrDefault();
@@ -188,14 +187,14 @@ public class McpE2ETests
         }
         finally
         {
-            await client.DisposeAsync();
+            await client.DisposeAsync().ConfigureAwait(false);
         }
     }
 
     [Test]
     public async Task E2E_StartWatching_ReturnsValidSessionId()
     {
-        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>());
+        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>()).ConfigureAwait(false);
 
         try
         {
@@ -208,7 +207,7 @@ public class McpE2ETests
                 ["maxWidth"] = 1920
             };
 
-            var result = await client.CallToolAsync("start_watching", args);
+            var result = await client.CallToolAsync("start_watching", args).ConfigureAwait(false);
             Assert.That(result, Is.Not.Null);
 
             var textContent = result.Content.OfType<TextContentBlock>().FirstOrDefault();
@@ -218,14 +217,14 @@ public class McpE2ETests
         }
         finally
         {
-            await client.DisposeAsync();
+            await client.DisposeAsync().ConfigureAwait(false);
         }
     }
 
     [Test]
     public async Task E2E_StopWatching_ReturnsSuccess()
     {
-        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>());
+        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>()).ConfigureAwait(false);
 
         try
         {
@@ -238,7 +237,7 @@ public class McpE2ETests
                 ["maxWidth"] = 1920
             };
 
-            var startResult = await client.CallToolAsync("start_watching", startArgs);
+            var startResult = await client.CallToolAsync("start_watching", startArgs).ConfigureAwait(false);
             Assert.That(startResult, Is.Not.Null, "start_watching failed");
 
             var textContent = startResult.Content.OfType<TextContentBlock>().FirstOrDefault();
@@ -251,7 +250,7 @@ public class McpE2ETests
                 ["sessionId"] = sessionId
             };
 
-            var stopResult = await client.CallToolAsync("stop_watching", stopArgs);
+            var stopResult = await client.CallToolAsync("stop_watching", stopArgs).ConfigureAwait(false);
             Assert.That(stopResult, Is.Not.Null);
 
             var stopTextContent = stopResult.Content.OfType<TextContentBlock>().FirstOrDefault();
@@ -260,14 +259,14 @@ public class McpE2ETests
         }
         finally
         {
-            await client.DisposeAsync();
+            await client.DisposeAsync().ConfigureAwait(false);
         }
     }
 
     [Test]
     public async Task E2E_InvalidMonitorIndex_ReturnsError()
     {
-        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>());
+        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>()).ConfigureAwait(false);
 
         try
         {
@@ -279,12 +278,12 @@ public class McpE2ETests
                 ["maxWidth"] = 1920
             };
 
-            var result = await client.CallToolAsync("see", args);
+            var result = await client.CallToolAsync("see", args).ConfigureAwait(false);
             Assert.That(result, Is.Not.Null);
         }
         finally
         {
-            await client.DisposeAsync();
+            await client.DisposeAsync().ConfigureAwait(false);
         }
     }
 
@@ -293,11 +292,11 @@ public class McpE2ETests
     [Test]
     public async Task E2E_ListAll_ReturnsValidTargets()
     {
-        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>());
+        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>()).ConfigureAwait(false);
 
         try
         {
-            var result = await client.CallToolAsync("list_all", null);
+            var result = await client.CallToolAsync("list_all", null).ConfigureAwait(false);
             Assert.That(result, Is.Not.Null);
 
             var textContent = result.Content.OfType<TextContentBlock>().FirstOrDefault();
@@ -306,14 +305,14 @@ public class McpE2ETests
         }
         finally
         {
-            await client.DisposeAsync();
+            await client.DisposeAsync().ConfigureAwait(false);
         }
     }
 
     [Test]
     public async Task E2E_ListAll_FilterMonitors_ReturnsOnlyMonitors()
     {
-        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>());
+        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>()).ConfigureAwait(false);
 
         try
         {
@@ -322,7 +321,7 @@ public class McpE2ETests
                 ["filter"] = "monitors"
             };
 
-            var result = await client.CallToolAsync("list_all", args);
+            var result = await client.CallToolAsync("list_all", args).ConfigureAwait(false);
             Assert.That(result, Is.Not.Null);
 
             var textContent = result.Content.OfType<TextContentBlock>().FirstOrDefault();
@@ -331,14 +330,14 @@ public class McpE2ETests
         }
         finally
         {
-            await client.DisposeAsync();
+            await client.DisposeAsync().ConfigureAwait(false);
         }
     }
 
     [Test]
     public async Task E2E_ListAll_FilterWindows_ReturnsOnlyWindows()
     {
-        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>());
+        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>()).ConfigureAwait(false);
 
         try
         {
@@ -347,7 +346,7 @@ public class McpE2ETests
                 ["filter"] = "windows"
             };
 
-            var result = await client.CallToolAsync("list_all", args);
+            var result = await client.CallToolAsync("list_all", args).ConfigureAwait(false);
             Assert.That(result, Is.Not.Null);
 
             var textContent = result.Content.OfType<TextContentBlock>().FirstOrDefault();
@@ -356,14 +355,14 @@ public class McpE2ETests
         }
         finally
         {
-            await client.DisposeAsync();
+            await client.DisposeAsync().ConfigureAwait(false);
         }
     }
 
     [Test]
     public async Task E2E_Capture_Primary_ReturnsValidImage()
     {
-        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>());
+        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>()).ConfigureAwait(false);
 
         try
         {
@@ -374,7 +373,7 @@ public class McpE2ETests
                 ["maxWidth"] = 1920
             };
 
-            var result = await client.CallToolAsync("capture", args);
+            var result = await client.CallToolAsync("capture", args).ConfigureAwait(false);
             Assert.That(result, Is.Not.Null);
 
             var textContent = result.Content.OfType<TextContentBlock>().FirstOrDefault();
@@ -383,14 +382,14 @@ public class McpE2ETests
         }
         finally
         {
-            await client.DisposeAsync();
+            await client.DisposeAsync().ConfigureAwait(false);
         }
     }
 
     [Test]
     public async Task E2E_Capture_Monitor_ReturnsValidImage()
     {
-        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>());
+        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>()).ConfigureAwait(false);
 
         try
         {
@@ -402,7 +401,7 @@ public class McpE2ETests
                 ["maxWidth"] = 1920
             };
 
-            var result = await client.CallToolAsync("capture", args);
+            var result = await client.CallToolAsync("capture", args).ConfigureAwait(false);
             Assert.That(result, Is.Not.Null);
 
             var textContent = result.Content.OfType<TextContentBlock>().FirstOrDefault();
@@ -411,7 +410,7 @@ public class McpE2ETests
         }
         finally
         {
-            await client.DisposeAsync();
+            await client.DisposeAsync().ConfigureAwait(false);
         }
     }
 
@@ -419,12 +418,12 @@ public class McpE2ETests
     [Ignore("Window capture may fail due to OS-specific visibility checks")]
     public async Task E2E_Capture_Window_ReturnsValidImage()
     {
-        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>());
+        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>()).ConfigureAwait(false);
 
         try
         {
             // First get a window handle
-            var listAllResult = await client.CallToolAsync("list_all", new Dictionary<string, object?> { ["filter"] = "windows" });
+            var listAllResult = await client.CallToolAsync("list_all", new Dictionary<string, object?> { ["filter"] = "windows" }).ConfigureAwait(false);
             Assert.That(listAllResult, Is.Not.Null, "list_all failed");
 
             var textContent = listAllResult.Content.OfType<TextContentBlock>().FirstOrDefault();
@@ -445,7 +444,7 @@ public class McpE2ETests
                 ["maxWidth"] = 1920
             };
 
-            var result = await client.CallToolAsync("capture", args);
+            var result = await client.CallToolAsync("capture", args).ConfigureAwait(false);
             Assert.That(result, Is.Not.Null);
 
             var resultTextContent = result.Content.OfType<TextContentBlock>().FirstOrDefault();
@@ -453,14 +452,14 @@ public class McpE2ETests
         }
         finally
         {
-            await client.DisposeAsync();
+            await client.DisposeAsync().ConfigureAwait(false);
         }
     }
 
     [Test]
     public async Task E2E_Capture_Region_ReturnsValidImage()
     {
-        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>());
+        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>()).ConfigureAwait(false);
 
         try
         {
@@ -475,7 +474,7 @@ public class McpE2ETests
                 ["maxWidth"] = 1920
             };
 
-            var result = await client.CallToolAsync("capture", args);
+            var result = await client.CallToolAsync("capture", args).ConfigureAwait(false);
             Assert.That(result, Is.Not.Null);
 
             var textContent = result.Content.OfType<TextContentBlock>().FirstOrDefault();
@@ -484,14 +483,14 @@ public class McpE2ETests
         }
         finally
         {
-            await client.DisposeAsync();
+            await client.DisposeAsync().ConfigureAwait(false);
         }
     }
 
     [Test]
     public async Task E2E_Watch_ReturnsValidSessionId()
     {
-        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>());
+        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>()).ConfigureAwait(false);
 
         try
         {
@@ -504,26 +503,26 @@ public class McpE2ETests
                 ["maxWidth"] = 1920
             };
 
-            var result = await client.CallToolAsync("watch", args);
+            var result = await client.CallToolAsync("watch", args).ConfigureAwait(false);
             Assert.That(result, Is.Not.Null);
 
             var textContent = result.Content.OfType<TextContentBlock>().FirstOrDefault();
             Assert.That(textContent, Is.Not.Null, "No text content found");
             Assert.That(textContent.Text, Is.Not.Null, "Session info is null");
-            
+
             // Verify it contains session ID (JSON uses camelCase)
             Assert.That(textContent.Text, Does.Contain("sessionId"), "Response should contain sessionId");
         }
         finally
         {
-            await client.DisposeAsync();
+            await client.DisposeAsync().ConfigureAwait(false);
         }
     }
 
     [Test]
     public async Task E2E_StopWatch_ReturnsSuccess()
     {
-        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>());
+        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>()).ConfigureAwait(false);
 
         try
         {
@@ -537,12 +536,12 @@ public class McpE2ETests
                 ["maxWidth"] = 1920
             };
 
-            var startResult = await client.CallToolAsync("watch", startArgs);
+            var startResult = await client.CallToolAsync("watch", startArgs).ConfigureAwait(false);
             Assert.That(startResult, Is.Not.Null, "watch failed");
 
             var textContent = startResult.Content.OfType<TextContentBlock>().FirstOrDefault();
             Assert.That(textContent, Is.Not.Null, "No text content found");
-            
+
             // Extract session ID from JSON response (camelCase)
             using var doc = System.Text.Json.JsonDocument.Parse(textContent.Text);
             var root = doc.RootElement;
@@ -555,7 +554,7 @@ public class McpE2ETests
                 ["sessionId"] = sessionId
             };
 
-            var stopResult = await client.CallToolAsync("stop_watch", stopArgs);
+            var stopResult = await client.CallToolAsync("stop_watch", stopArgs).ConfigureAwait(false);
             Assert.That(stopResult, Is.Not.Null);
 
             var stopTextContent = stopResult.Content.OfType<TextContentBlock>().FirstOrDefault();
@@ -564,7 +563,7 @@ public class McpE2ETests
         }
         finally
         {
-            await client.DisposeAsync();
+            await client.DisposeAsync().ConfigureAwait(false);
         }
     }
 
@@ -573,24 +572,24 @@ public class McpE2ETests
     [Test]
     public async Task E2E_ListAudioDevices_ReturnsDevices()
     {
-        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>());
+        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>()).ConfigureAwait(false);
 
         try
         {
-            var result = await client.CallToolAsync("list_audio_devices", null);
+            var result = await client.CallToolAsync("list_audio_devices", null).ConfigureAwait(false);
             Assert.That(result, Is.Not.Null);
 
             var textContent = result.Content.OfType<TextContentBlock>().FirstOrDefault();
             Assert.That(textContent, Is.Not.Null, "No text content found");
             Assert.That(textContent.Text, Is.Not.Null, "Response text is null");
-            
+
             // Verify response contains device information
-            Assert.That(textContent.Text, Does.Contain("Index").Or.Contain("index"), 
+            Assert.That(textContent.Text, Does.Contain("Index").Or.Contain("index"),
                 "Response should contain device index");
         }
         finally
         {
-            await client.DisposeAsync();
+            await client.DisposeAsync().ConfigureAwait(false);
         }
     }
 
@@ -603,8 +602,8 @@ public class McpE2ETests
         // Check if we should keep the audio file for manual verification
         // Usage: $env:KEEP_AUDIO_FILE="true"; dotnet test --filter "E2E_CaptureSystemAudio_WithYouTubePlaying_SavesWavFile"
         bool keepAudioFile = Environment.GetEnvironmentVariable("KEEP_AUDIO_FILE")?.ToLower() == "true";
-        
-        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>());
+
+        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>()).ConfigureAwait(false);
         string? outputPath = null;
 
         try
@@ -619,8 +618,8 @@ public class McpE2ETests
                 Console.WriteLine("[INFO] KEEP_AUDIO_FILE=true - WAV file will NOT be deleted after test");
             }
             Console.WriteLine(new string('=', 60) + "\n");
-            
-            await Task.Delay(5000);
+
+            await Task.Delay(5000).ConfigureAwait(false);
 
             // Start system audio capture
             var startArgs = new Dictionary<string, object?>
@@ -629,23 +628,23 @@ public class McpE2ETests
                 ["sampleRate"] = 44100
             };
 
-            var startResult = await client.CallToolAsync("start_audio_capture", startArgs);
+            var startResult = await client.CallToolAsync("start_audio_capture", startArgs).ConfigureAwait(false);
             Assert.That(startResult, Is.Not.Null, "start_audio_capture failed");
 
             var textContent = startResult.Content.OfType<TextContentBlock>().FirstOrDefault();
             Assert.That(textContent, Is.Not.Null, "No text content found");
-            
+
             // Parse session info
             using var doc = System.Text.Json.JsonDocument.Parse(textContent.Text);
             var root = doc.RootElement;
             var sessionId = root.GetProperty("sessionId").GetString();
             Assert.That(sessionId, Is.Not.Null.And.Not.Empty, "Session ID is null");
-            
+
             Console.WriteLine($"Started audio capture session: {sessionId}");
             Console.WriteLine("Recording for 5 seconds... Please ensure audio is playing!");
 
             // Record for 5 seconds
-            await Task.Delay(5000);
+            await Task.Delay(5000).ConfigureAwait(false);
 
             // Stop capture and get audio data
             var stopArgs = new Dictionary<string, object?>
@@ -654,62 +653,62 @@ public class McpE2ETests
                 ["returnFormat"] = "base64"
             };
 
-            var stopResult = await client.CallToolAsync("stop_audio_capture", stopArgs);
+            var stopResult = await client.CallToolAsync("stop_audio_capture", stopArgs).ConfigureAwait(false);
             Assert.That(stopResult, Is.Not.Null, "stop_audio_capture failed");
 
             var stopTextContent = stopResult.Content.OfType<TextContentBlock>().FirstOrDefault();
             Assert.That(stopTextContent, Is.Not.Null, "No text content in stop result");
-            
+
             // Parse result
             using var stopDoc = System.Text.Json.JsonDocument.Parse(stopTextContent.Text);
             var stopRoot = stopDoc.RootElement;
-            
+
             // Get base64 audio data
             string? audioBase64 = null;
             if (stopRoot.TryGetProperty("audioDataBase64", out var audioDataElement))
             {
                 audioBase64 = audioDataElement.GetString();
             }
-            
+
             Assert.That(audioBase64, Is.Not.Null.And.Not.Empty, "Audio data is null");
-            
+
             // Save to file for verification
             outputPath = Path.Combine(Path.GetTempPath(), $"test_capture_{sessionId}.wav");
             var audioBytes = Convert.FromBase64String(audioBase64);
-            await File.WriteAllBytesAsync(outputPath, audioBytes);
-            
+            await File.WriteAllBytesAsync(outputPath, audioBytes).ConfigureAwait(false);
+
             // Verify file was created
             Assert.That(File.Exists(outputPath), Is.True, $"Audio file not found: {outputPath}");
-            
+
             // Verify file size (should be > 44 bytes for valid WAV header + some data)
             var fileInfo = new FileInfo(outputPath);
-            Assert.That(fileInfo.Length, Is.GreaterThan(1000), 
+            Assert.That(fileInfo.Length, Is.GreaterThan(1000),
                 $"Audio file too small ({fileInfo.Length} bytes). Is audio playing?");
-            
+
             // Verify it's a valid WAV file (RIFF header)
             using var fs = File.OpenRead(outputPath);
             var header = new byte[Math.Min(44, (int)fileInfo.Length)];
             fs.Read(header, 0, header.Length);
-            
+
             // Log header for debugging
             var headerHex = BitConverter.ToString(header.Take(16).ToArray());
             Console.WriteLine($"   File header (hex): {headerHex}");
-            
+
             // Check RIFF header
             var riffHeader = System.Text.Encoding.ASCII.GetString(header, 0, 4);
-            Assert.That(riffHeader, Is.EqualTo("RIFF"), 
+            Assert.That(riffHeader, Is.EqualTo("RIFF"),
                 $"File does not have valid WAV RIFF header. Header: {riffHeader}");
-            
+
             // Check WAVE format
             var waveHeader = System.Text.Encoding.ASCII.GetString(header, 8, 4);
-            Assert.That(waveHeader, Is.EqualTo("WAVE"), 
+            Assert.That(waveHeader, Is.EqualTo("WAVE"),
                 $"File is not a valid WAVE file. Format: {waveHeader}");
-            
+
             Console.WriteLine($"\n✅ SUCCESS! Audio captured successfully:");
             Console.WriteLine($"   File: {outputPath}");
             Console.WriteLine($"   Size: {fileInfo.Length:N0} bytes");
             Console.WriteLine($"   Duration: ~5 seconds");
-            
+
             if (keepAudioFile)
             {
                 Console.WriteLine($"\n💾 AUDIO FILE PRESERVED for manual verification:");
@@ -727,8 +726,8 @@ public class McpE2ETests
         }
         finally
         {
-            await client.DisposeAsync();
-            
+            await client.DisposeAsync().ConfigureAwait(false);
+
             // Cleanup: delete the test file only if not preserving
             if (!keepAudioFile && outputPath != null && File.Exists(outputPath))
             {
@@ -745,22 +744,22 @@ public class McpE2ETests
     [Test]
     public async Task E2E_GetActiveAudioSessions_ReturnsList()
     {
-        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>());
+        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>()).ConfigureAwait(false);
 
         try
         {
-            var result = await client.CallToolAsync("get_active_audio_sessions", null);
+            var result = await client.CallToolAsync("get_active_audio_sessions", null).ConfigureAwait(false);
             Assert.That(result, Is.Not.Null);
 
             var textContent = result.Content.OfType<TextContentBlock>().FirstOrDefault();
             Assert.That(textContent, Is.Not.Null, "No text content found");
-            
+
             // Should return a list (possibly empty if no sessions active)
             Assert.That(textContent.Text, Is.Not.Null, "Response text is null");
         }
         finally
         {
-            await client.DisposeAsync();
+            await client.DisposeAsync().ConfigureAwait(false);
         }
     }
 
@@ -769,24 +768,24 @@ public class McpE2ETests
     [Test]
     public async Task E2E_GetWhisperModelInfo_ReturnsModelList()
     {
-        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>());
+        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>()).ConfigureAwait(false);
 
         try
         {
-            var result = await client.CallToolAsync("get_whisper_model_info", null);
+            var result = await client.CallToolAsync("get_whisper_model_info", null).ConfigureAwait(false);
             Assert.That(result, Is.Not.Null);
 
             var textContent = result.Content.OfType<TextContentBlock>().FirstOrDefault();
             Assert.That(textContent, Is.Not.Null, "No text content found");
             Assert.That(textContent.Text, Is.Not.Null.And.Not.Empty, "Response is empty");
-            
+
             // Verify it contains model names
-            Assert.That(textContent.Text, Does.Contain("tiny").Or.Contain("base"), 
+            Assert.That(textContent.Text, Does.Contain("tiny").Or.Contain("base"),
                 "Response should contain model information");
         }
         finally
         {
-            await client.DisposeAsync();
+            await client.DisposeAsync().ConfigureAwait(false);
         }
     }
 
@@ -797,7 +796,7 @@ public class McpE2ETests
                  "\nTest duration: ~30 seconds (10s recording + transcription time)")]
     public async Task E2E_Listen_SystemAudio_TranscribesYouTubePodcast()
     {
-        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>());
+        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>()).ConfigureAwait(false);
 
         try
         {
@@ -811,8 +810,8 @@ public class McpE2ETests
             Console.WriteLine(new string('=', 70));
             Console.WriteLine("Please ensure YouTube podcast is playing!");
             Console.WriteLine("Test starting in 3 seconds...\n");
-            
-            await Task.Delay(3000);
+
+            await Task.Delay(3000).ConfigureAwait(false);
 
             // Call listen tool with system audio
             var args = new Dictionary<string, object?>
@@ -826,24 +825,24 @@ public class McpE2ETests
 
             Console.WriteLine("[Test] Starting audio recording and transcription...");
             Console.WriteLine("[Test] Recording system audio for 10 seconds...");
-            
+
             var startTime = DateTime.Now;
-            var result = await client.CallToolAsync("listen", args);
+            var result = await client.CallToolAsync("listen", args).ConfigureAwait(false);
             var elapsed = DateTime.Now - startTime;
-            
+
             Assert.That(result, Is.Not.Null, "listen tool failed");
 
             var textContent = result.Content.OfType<TextContentBlock>().FirstOrDefault();
             Assert.That(textContent, Is.Not.Null, "No text content found");
             Assert.That(textContent.Text, Is.Not.Null.And.Not.Empty, "Transcription result is empty");
-            
+
             // Log raw response for debugging
             Console.WriteLine($"\n[Debug] Raw response:\n{textContent.Text}\n");
-            
+
             // Parse transcription result
             using var doc = System.Text.Json.JsonDocument.Parse(textContent.Text);
             var root = doc.RootElement;
-            
+
             // Check for segments
             if (root.TryGetProperty("segments", out var segmentsElement))
             {
@@ -854,7 +853,7 @@ public class McpE2ETests
                 Console.WriteLine($"   Recording: 10 seconds");
                 Console.WriteLine($"   Processing: {elapsed.TotalSeconds - 10:F1} seconds");
                 Console.WriteLine("\n--- TRANSCRIPTION ---");
-                
+
                 foreach (var segment in segmentsElement.EnumerateArray())
                 {
                     var text = segment.GetProperty("text").GetString();
@@ -862,7 +861,7 @@ public class McpE2ETests
                     Console.WriteLine($"[{start}] {text}");
                 }
                 Console.WriteLine("--- END ---\n");
-                
+
                 Assert.That(segmentCount, Is.GreaterThan(0), "No transcription segments found");
             }
             else
@@ -873,7 +872,7 @@ public class McpE2ETests
         }
         finally
         {
-            await client.DisposeAsync();
+            await client.DisposeAsync().ConfigureAwait(false);
         }
     }
 }

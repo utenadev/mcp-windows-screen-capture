@@ -1,6 +1,6 @@
+using System.Collections.Concurrent;
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
-using System.Collections.Concurrent;
 
 /// <summary>
 /// Audio capture source type
@@ -56,7 +56,7 @@ public class AudioCaptureService : IDisposable
     public static List<AudioDeviceInfo> GetAudioDevices()
     {
         var devices = new List<AudioDeviceInfo>();
-        
+
         // Get microphone devices
         for (int i = 0; i < WaveIn.DeviceCount; i++)
         {
@@ -96,7 +96,7 @@ public class AudioCaptureService : IDisposable
     {
         var sessionId = Guid.NewGuid().ToString();
         var tempPath = Path.Combine(Path.GetTempPath(), $"audio_capture_{sessionId}.wav");
-        
+
         IWaveIn? capture = null;
         WaveFileWriter? writer = null;
         MemoryStream? buffer = null;
@@ -108,7 +108,7 @@ public class AudioCaptureService : IDisposable
                 case AudioCaptureSource.System:
                     capture = new WasapiLoopbackCapture();
                     break;
-                    
+
                 case AudioCaptureSource.Microphone:
                     capture = new WaveInEvent
                     {
@@ -116,13 +116,13 @@ public class AudioCaptureService : IDisposable
                         WaveFormat = new WaveFormat(sampleRate, 16, 1)
                     };
                     break;
-                    
+
                 case AudioCaptureSource.Both:
                     // For both, we'll capture system audio as primary
                     // and mix microphone in later if needed
                     capture = new WasapiLoopbackCapture();
                     break;
-                    
+
                 default:
                     throw new ArgumentException($"Unknown audio source: {source}");
             }
@@ -139,7 +139,7 @@ public class AudioCaptureService : IDisposable
             capture.RecordingStopped += (s, e) =>
             {
                 writer?.Dispose();
-                
+
                 if (e.Exception != null)
                 {
                     Console.Error.WriteLine($"[Audio] Recording error: {e.Exception.Message}");
@@ -214,8 +214,8 @@ public class AudioCaptureService : IDisposable
         var duration = DateTime.UtcNow - session.StartTime;
 
         // Update session status
-        _sessions.TryUpdate(sessionId, 
-            session with { Status = "completed" }, 
+        _sessions.TryUpdate(sessionId,
+            session with { Status = "completed" },
             session);
 
         // Convert to base64 if requested
