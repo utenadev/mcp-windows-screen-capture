@@ -1,11 +1,42 @@
 # Changelog
 
-All notable changes to MCP Windows Screen Capture Server will be documented in this file.
+All notable changes to windows-desktop-use-mcp will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [3.0.0] - 2026-02-08
+
+### Added
+- **Desktop Input Module**: New `WindowsDesktopUse.Input` DLL for controlling Windows desktop.
+  - Mouse control: `mouse_move`, `mouse_click`, `mouse_drag`.
+  - Keyboard control: `keyboard_type` (Unicode/International support), `keyboard_key` (Special keys like Ctrl, Alt, Win, Enter, etc.).
+  - Unified coordinate system using physical pixels, ensuring 1:1 mapping between screen capture and input actions.
+- **Modular Architecture**: Project refactored into functional DLLs for better maintainability and extensibility.
+  - `WindowsDesktopUse.Core`: Shared models and interfaces.
+  - `WindowsDesktopUse.Screen`: Screen and window capture logic.
+  - `WindowsDesktopUse.Audio`: WASAPI audio recording.
+  - `WindowsDesktopUse.Transcription`: Whisper AI transcription.
+  - `WindowsDesktopUse.Input`: Desktop automation (SendInput).
+  - `WindowsDesktopUse.App`: MCP Server host.
+- **Enhanced E2E Tests**: Expanded test suite to cover new input features.
+  - Added Notepad automation tests (Type -> Capture -> Verify).
+  - Total non-explicit tests increased to 26, plus 9 explicit GUI tests.
+- **Documentation Overhaul**:
+  - Updated `README.md` and `README.ja.md` with new project name and features.
+  - Added architecture diagrams and module details to `DEVELOPMENT.md`.
+  - Comprehensive tool documentation in `TOOLS.md`.
+
+### Changed
+- **Project Renamed**: Migrated from `mcp-windows-screen-capture` to **`windows-desktop-use-mcp`**.
+- **Namespace Unified**: All code now uses the `WindowsDesktopUse` namespace.
+- **CI/CD Improvements**: GitHub Actions workflows updated to support multi-project solution and new paths.
+- **Improved High-DPI Support**: Explicit use of `SetProcessDPIAware()` to ensure consistent pixel-perfect coordinates across all tools.
+
+### Fixed
+- E2E test server path resolution issue.
+- Discordant documentation between English and Japanese versions.
+- Cleaned up obsolete solution files and temporary debug artifacts.
 
 ## [2.1.0] - 2026-02-04
 
@@ -120,12 +151,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Basic MCP server implementation
 - Screen capture functionality
 
-[Unreleased]: https://github.com/utenadev/mcp-windows-screen-capture/compare/v2.1.0...HEAD
-[2.1.0]: https://github.com/utenadev/mcp-windows-screen-capture/compare/v2.0.0...v2.1.0
-[2.0.0]: https://github.com/utenadev/mcp-windows-screen-capture/compare/v1.5.0...v2.0.0
-[1.5.0]: https://github.com/utenadev/mcp-windows-screen-capture/compare/v1.4.0...v1.5.0
-[1.4.0]: https://github.com/utenadev/mcp-windows-screen-capture/compare/v1.3.0...v1.4.0
-[1.3.0]: https://github.com/utenadev/mcp-windows-screen-capture/compare/v1.2.0...v1.3.0
-[1.2.0]: https://github.com/utenadev/mcp-windows-screen-capture/compare/v1.1.0...v1.2.0
-[1.1.0]: https://github.com/utenadev/mcp-windows-screen-capture/compare/v1.0.0...v1.1.0
-[1.0.0]: https://github.com/utenadev/mcp-windows-screen-capture/releases/tag/v1.0.0
+[Unreleased]: https://github.com/utenadev/windows-desktop-use-mcp/compare/v3.0.0...HEAD
+[3.0.0]: https://github.com/utenadev/windows-desktop-use-mcp/compare/v2.1.0...v3.0.0
+[2.1.0]: https://github.com/utenadev/windows-desktop-use-mcp/compare/v2.0.0...v2.1.0
+[2.0.0]: https://github.com/utenadev/windows-desktop-use-mcp/compare/v1.5.0...v2.0.0
+[1.5.0]: https://github.com/utenadev/windows-desktop-use-mcp/compare/v1.4.0...v1.5.0
+[1.4.0]: https://github.com/utenadev/windows-desktop-use-mcp/compare/v1.3.0...v1.4.0
+[1.3.0]: https://github.com/utenadev/windows-desktop-use-mcp/compare/v1.2.0...v1.3.0
+[1.2.0]: https://github.com/utenadev/windows-desktop-use-mcp/compare/v1.1.0...v1.2.0
+[1.1.0]: https://github.com/utenadev/windows-desktop-use-mcp/compare/v1.0.0...v1.1.0
+[1.0.0]: https://github.com/utenadev/windows-desktop-use-mcp/releases/tag/v1.0.0
