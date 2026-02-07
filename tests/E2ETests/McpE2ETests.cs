@@ -25,7 +25,7 @@ public class McpE2ETests
             Path.Combine(repoRoot, "src", "WindowsDesktopUse.App", "bin", "Release", "net8.0-windows", "win-x64", "WindowsDesktopUse.App.exe"),
             Path.Combine(repoRoot, "src", "WindowsDesktopUse.App", "bin", "Debug", "net8.0-windows", "win-x64", "WindowsDesktopUse.App.exe"),
             // Local development fallback
-            @"C:\workspace\mcp-windows-screen-capture\src\WindowsDesktopUse.App\bin\Release\net8.0-windows\win-x64\WindowsDesktopUse.App.exe"
+            ""
         };
 
         foreach (var path in possiblePaths)
@@ -44,7 +44,7 @@ public class McpE2ETests
     {
         var testAssemblyDir = Path.GetDirectoryName(typeof(McpE2ETests).Assembly.Location)!;
         // Go up from tests/E2ETests/bin/Debug/net8.0 to repo root
-        return Path.GetFullPath(Path.Combine(testAssemblyDir, "..", "..", "..", ".."));
+        return Path.GetFullPath(Path.Combine(testAssemblyDir, "..", "..", "..", "..", ".."));
     }
 
     // Helper method to find window by process ID using MainWindowHandle
