@@ -30,6 +30,8 @@ public class McpE2ETests
 
         foreach (var path in possiblePaths)
         {
+            if (string.IsNullOrEmpty(path))
+                continue;
             var fullPath = Path.GetFullPath(path);
             if (File.Exists(fullPath))
             {
