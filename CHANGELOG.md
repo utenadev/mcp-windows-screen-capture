@@ -37,6 +37,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - E2E test server path resolution issue.
 - Discordant documentation between English and Japanese versions.
 - Cleaned up obsolete solution files and temporary debug artifacts.
+- **InputService API Consistency**: Unified all mouse/keyboard operations to use `SendInput` API instead of mixed `mouse_event`/`SetCursorPos`.
+- **Static Analysis**: Resolved all warnings in source projects (0 warnings achieved).
+- **Resource Management**: Implemented `IDisposable` pattern in `StreamSession` for proper cleanup.
+- **CI/CD**: Fixed GitHub Actions build error (MSB1011) by specifying explicit solution file paths.
+
+### Added
+- **Planning Documents**: Added `docs/report/plan_20260208_safe_input.md` for secure desktop input implementation strategy.
+- **Review Documents**: Added `docs/report/review_20260208_safe_input.md` with comprehensive code review feedback.
 
 ## [2.1.0] - 2026-02-04
 

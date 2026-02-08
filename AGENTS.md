@@ -160,3 +160,29 @@ struct RECT { public int Left, Top, Right, Bottom; }
 
 ## CI/CD
 GitHub Actions workflow builds and publishes artifacts on push to main/master.
+
+## File Modification Policy
+
+**CRITICAL:** Before making file modifications, commits, or pushes, you MUST obtain explicit user approval:
+
+### Required Approval Actions
+- **File modifications** - Must ask for approval before editing any files
+- **`git commit`** - Must ask for approval before committing
+- **`git push`** - Must ask for approval before pushing
+- **`git merge`** - Must ask for approval before merging
+- **`git rebase`** - Must ask for approval before rebasing
+- **`git reset --hard`** - Must ask for approval (destructive operation)
+
+### Workflow
+1. Present the planned changes to the user
+2. Wait for explicit approval (e.g., "OK", "承認", "実行して")
+3. Only proceed after receiving approval
+4. Report the results after completion
+
+### Allowed Without Approval
+- `git status` - Check repository status
+- `git log` - View commit history
+- `git diff` - View changes
+- `git branch` - List branches
+- Reading files - To understand codebase
+- Build/test commands - To verify changes
