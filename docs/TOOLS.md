@@ -21,8 +21,7 @@ This document provides detailed information about the MCP tools available in thi
 | **Control (Mouse)** | `mouse_move` | Move cursor to specific coordinates |
 | | `mouse_click` | Mouse click (left/right/middle, double-click) |
 | | `mouse_drag` | Drag and drop operation |
-| **Control (Keyboard)**| `keyboard_type` | Type text (Unicode support) |
-| | `keyboard_key` | Press special keys (Enter, Tab, Ctrl+C, etc.) |
+| **Control (Keyboard)**| `keyboard_key` | Press safe navigation keys only (security restricted) |
 | **Hearing** | `listen` | Transcribe system audio or microphone |
 | | `list_audio_devices` | List available audio devices |
 | | `get_active_audio_sessions` | List running audio sessions |
@@ -65,17 +64,25 @@ Drags from the start position to the end position while holding the left button.
   - `startX`, `startY` (number): Start coordinates
   - `endX`, `endY` (number): Drop destination coordinates
 
-#### `keyboard_type`
-Sends the specified string as keyboard input. Supports Unicode characters.
-- **Arguments:**
-  - `text` (string): The text to type
+#### `keyboard_key` (Security Restricted)
+Simulates pressing, releasing, or clicking a navigation key only.
 
-#### `keyboard_key`
-Simulates pressing, releasing, or clicking (press and release) a special key.
+**⚠️ Security Notice:** For security reasons, only safe navigation keys are allowed. Text typing and modifier keys (Ctrl, Alt, Win) are blocked to prevent unintended system operations.
+
 - **Arguments:**
   - `key` (string): Key name.
-    - Available: `enter`, `return`, `tab`, `escape`, `esc`, `space`, `backspace`, `delete`, `del`, `left`, `up`, `right`, `down`, `home`, `end`, `pageup`, `pagedown`, `shift`, `ctrl`, `alt`, `win`
+    - **Allowed keys:** `enter`, `return`, `tab`, `escape`, `esc`, `space`, `backspace`, `delete`, `del`, `left`, `up`, `right`, `down`, `home`, `end`, `pageup`, `pagedown`
+    - **Not allowed:** `ctrl`, `alt`, `win`, `shift` (blocked for security)
   - `action` (string): "click", "press" (hold down), "release" (let go) (default: "click")
+
+- **Use Cases:**
+  - Navigate forms using Tab key
+  - Confirm actions with Enter
+  - Close dialogs with Escape
+  - Navigate lists and menus with arrow keys
+  - Navigate pages with PageUp/PageDown
+
+- **Note:** For text input, use mouse to focus a text field first. Direct text typing is not supported for security reasons.
 
 ---
 

@@ -25,6 +25,7 @@ public enum KeyAction
 
 /// <summary>
 /// Service for mouse and keyboard input operations using SendInput API
+/// Security-restricted: Only safe navigation keys are allowed
 /// </summary>
 public class InputService
 {
@@ -89,7 +90,6 @@ public class InputService
     const uint MOUSEEVENTF_MIDDLEUP = 0x0040;
     const uint MOUSEEVENTF_ABSOLUTE = 0x8000;
     const uint KEYEVENTF_KEYUP = 0x0002;
-    const uint KEYEVENTF_UNICODE = 0x0004;
 
     /// <summary>
     /// Move mouse cursor to absolute position using SendInput
@@ -240,51 +240,17 @@ public class InputService
     }
 
     /// <summary>
-    /// Type text (simulates keystrokes for each character) using SendInput
-    /// </summary>
-    public void TypeText(string text)
-    {
-        foreach (char c in text)
-        {
-            SendKey(c);
-        }
-    }
-
-    /// <summary>
-    /// Send a single key using SendInput
-    /// </summary>
-    private void SendKey(char c)
-    {
-        var inputs = new INPUT[2];
-
-        inputs[0].type = INPUT_KEYBOARD;
-        inputs[0].mkhi.ki = new KEYBDINPUT
-        {
-            wVk = 0,
-            wScan = c,
-            dwFlags = KEYEVENTF_UNICODE,
-            time = 0,
-            dwExtraInfo = IntPtr.Zero
-        };
-
-        inputs[1].type = INPUT_KEYBOARD;
-        inputs[1].mkhi.ki = new KEYBDINPUT
-        {
-            wVk = 0,
-            wScan = c,
-            dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP,
-            time = 0,
-            dwExtraInfo = IntPtr.Zero
-        };
-
-        SendInput((uint)inputs.Length, inputs, Marshal.SizeOf(typeof(INPUT)));
-    }
-
-    /// <summary>
     /// Press a virtual key using SendInput
+    /// Security: Only safe navigation keys are allowed
     /// </summary>
     public void PressKey(ushort virtualKey, KeyAction action = KeyAction.Click)
     {
+        // Security check: Only allow safe navigation keys
+        if (!IsAllowedKey(virtualKey))
+        {
+            throw new InvalidOperationException($"Key 0x{virtualKey:X2} is not allowed for security reasons. Only navigation keys (arrows, Tab, Enter, Escape, etc.) are permitted.");
+        }
+
         switch (action)
         {
             case KeyAction.Press:
@@ -300,7 +266,36 @@ public class InputService
         }
     }
 
-    private void SendVirtualKey(ushort virtualKey, bool keyUp)
+    /// <summary>
+    /// Check if a virtual key is allowed (safe navigation keys only)
+    /// </summary>
+    private static bool IsAllowedKey(ushort virtualKey)
+    {
+        return virtualKey switch
+        {
+            // Navigation keys
+            VirtualKeys.Enter => true,
+            VirtualKeys.Tab => true,
+            VirtualKeys.Escape => true,
+            VirtualKeys.Space => true,
+            VirtualKeys.Backspace => true,
+            VirtualKeys.Delete => true,
+            // Arrow keys
+            VirtualKeys.Left => true,
+            VirtualKeys.Up => true,
+            VirtualKeys.Right => true,
+            VirtualKeys.Down => true,
+            // Page/Line navigation
+            VirtualKeys.Home => true,
+            VirtualKeys.End => true,
+            VirtualKeys.PageUp => true,
+            VirtualKeys.PageDown => true,
+            // Everything else is forbidden
+            _ => false
+        };
+    }
+
+    private static void SendVirtualKey(ushort virtualKey, bool keyUp)
     {
         var input = new INPUT
         {
@@ -322,34 +317,28 @@ public class InputService
     }
 
     /// <summary>
-    /// Common virtual key codes
+    /// Common virtual key codes - Safe navigation keys only
     /// </summary>
     public static class VirtualKeys
     {
+        // Navigation keys
         public const ushort Enter = 0x0D;
         public const ushort Tab = 0x09;
         public const ushort Escape = 0x1B;
         public const ushort Space = 0x20;
         public const ushort Backspace = 0x08;
         public const ushort Delete = 0x2E;
+        
+        // Arrow keys
         public const ushort Left = 0x25;
         public const ushort Up = 0x26;
         public const ushort Right = 0x27;
         public const ushort Down = 0x28;
+        
+        // Page/Line navigation
         public const ushort Home = 0x24;
         public const ushort End = 0x23;
         public const ushort PageUp = 0x21;
         public const ushort PageDown = 0x22;
-        public const ushort Shift = 0x10;
-        public const ushort Control = 0x11;
-        public const ushort Alt = 0x12;
-        public const ushort Win = 0x5B;
-        public const ushort F1 = 0x70;
-        public const ushort F12 = 0x7B;
-        public const ushort A = 0x41;
-        public const ushort C = 0x43;
-        public const ushort V = 0x56;
-        public const ushort X = 0x58;
-        public const ushort Z = 0x5A;
     }
 }

@@ -42,6 +42,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Resource Management**: Implemented `IDisposable` pattern in `StreamSession` for proper cleanup.
 - **CI/CD**: Fixed GitHub Actions build error (MSB1011) by specifying explicit solution file paths.
 
+### Security
+- **Input Security Restriction**: Restricted keyboard input to safe navigation keys only for security.
+  - Removed `keyboard_type` tool to prevent arbitrary text input and system command execution.
+  - Blocked dangerous modifier keys (Ctrl, Alt, Win) at API level.
+  - Allowed keys: arrows, Tab, Enter, Escape, Space, Backspace, Delete, Home, End, PageUp, PageDown.
+  - All keyboard operations now use secure `SendInput` API with validation.
+
 ### Added
 - **Planning Documents**: Added `docs/report/plan_20260208_safe_input.md` for secure desktop input implementation strategy.
 - **Review Documents**: Added `docs/report/review_20260208_safe_input.md` with comprehensive code review feedback.
