@@ -564,17 +564,9 @@ public static class DesktopUseTools
         _inputService.DragMouse(startX, startY, endX, endY);
     }
 
-    [McpServerTool, Description("Type text (direct input)")]
-    public static void KeyboardType(
-        [Description("Text to type")] string text)
-    {
-        if (_inputService == null) throw new InvalidOperationException("InputService not initialized");
-        _inputService.TypeText(text);
-    }
-
-    [McpServerTool, Description("Press a special key")]
+    [McpServerTool, Description("Press a navigation key (security restricted)")]
     public static void KeyboardKey(
-        [Description("Key name (enter, tab, escape, etc.)")] string key,
+        [Description("Key name: enter, tab, escape, space, backspace, delete, left, up, right, down, home, end, pageup, pagedown")] string key,
         [Description("Action: 'press', 'release', 'click'")] string action = "click")
     {
         if (_inputService == null) throw new InvalidOperationException("InputService not initialized");
@@ -606,13 +598,7 @@ public static class DesktopUseTools
             "end" => InputService.VirtualKeys.End,
             "pageup" => InputService.VirtualKeys.PageUp,
             "pagedown" => InputService.VirtualKeys.PageDown,
-            "shift" => InputService.VirtualKeys.Shift,
-            "ctrl" => InputService.VirtualKeys.Control,
-            "control" => InputService.VirtualKeys.Control,
-            "alt" => InputService.VirtualKeys.Alt,
-            "win" => InputService.VirtualKeys.Win,
-            "windows" => InputService.VirtualKeys.Win,
-            _ => throw new ArgumentException($"Unknown key: {key}")
+            _ => throw new ArgumentException($"Key '{key}' is not allowed or unknown. Allowed keys: enter, tab, escape, space, backspace, delete, arrow keys, home, end, pageup, pagedown")
         };
 
         _inputService.PressKey(virtualKey, keyAction);

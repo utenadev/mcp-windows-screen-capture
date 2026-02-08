@@ -1050,28 +1050,6 @@ public class McpE2ETests
     }
 
     [Test]
-    public async Task E2E_KeyboardType_ReturnsSuccess()
-    {
-        var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>()).ConfigureAwait(false);
-
-        try
-        {
-            var args = new Dictionary<string, object?>
-            {
-                ["text"] = "Hello World"
-            };
-
-            var result = await client.CallToolAsync("keyboard_type", args).ConfigureAwait(false);
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Content, Is.Not.Null);
-        }
-        finally
-        {
-            await client.DisposeAsync().ConfigureAwait(false);
-        }
-    }
-
-    [Test]
     public async Task E2E_KeyboardKey_ReturnsSuccess()
     {
         var client = await TestHelper.CreateStdioClientAsync(ServerPath, Array.Empty<string>()).ConfigureAwait(false);

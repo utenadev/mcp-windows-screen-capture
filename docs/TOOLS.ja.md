@@ -21,8 +21,7 @@
 | **操作 (Mouse)** | `mouse_move` | 指定座標へマウスカーソルを移動 |
 | | `mouse_click` | マウスクリック（左/右/中、ダブルクリック） |
 | | `mouse_drag` | ドラッグ＆ドロップ操作 |
-| **操作 (Keyboard)**| `keyboard_type` | 文字列を入力（Unicode対応） |
-| | `keyboard_key` | 特殊キーの操作（Enter, Tab, Ctrl+C 等） |
+| **操作 (Keyboard)**| `keyboard_key` | 安全なナビゲーションキーのみ操作（セキュリティ制限あり） |
 | **聴覚** | `listen` | システム音やマイクを文字起こし |
 | | `list_audio_devices` | オーディオデバイスの一覧を取得 |
 | | `get_active_audio_sessions` | 実行中のオーディオセッション一覧を取得 |
@@ -65,17 +64,25 @@
   - `startX`, `startY` (number): ドラッグ開始座標
   - `endX`, `endY` (number): ドロップ先の座標
 
-#### `keyboard_type`
-指定した文字列をキーボード入力として送信します。Unicode 文字（日本語など）に対応しています。
-- **引数:**
-  - `text` (string): 入力する文字列
+#### `keyboard_key`（セキュリティ制限あり）
+ナビゲーションキーの押下、解放、またはクリックのみをシミュレートします。
 
-#### `keyboard_key`
-特殊キーの押下、解放、またはクリック（押して離す）をシミュレートします。
+**⚠️ セキュリティ通知:** セキュリティ上の理由から、安全なナビゲーションキーのみが許可されています。テキスト入力や修飾キー（Ctrl, Alt, Win）は、意図しないシステム操作を防ぐためにブロックされています。
+
 - **引数:**
   - `key` (string): キー名。
-    - 利用可能: `enter`, `return`, `tab`, `escape`, `esc`, `space`, `backspace`, `delete`, `del`, `left`, `up`, `right`, `down`, `home`, `end`, `pageup`, `pagedown`, `shift`, `ctrl`, `alt`, `win`
+    - **許可されるキー:** `enter`, `return`, `tab`, `escape`, `esc`, `space`, `backspace`, `delete`, `del`, `left`, `up`, `right`, `down`, `home`, `end`, `pageup`, `pagedown`
+    - **許可されないキー:** `ctrl`, `alt`, `win`, `shift` (セキュリティのためブロック)
   - `action` (string): "click", "press" (押し続ける), "release" (離す) (デフォルト: "click")
+
+- **使用例:**
+  - Tabキーでフォームを移動
+  - Enterキーでアクションを確定
+  - Escapeキーでダイアログを閉じる
+  - 矢印キーでリストやメニューを移動
+  - PageUp/PageDownでページ移動
+
+- **注意:** テキスト入力が必要な場合は、まずマウスでテキストフィールドにフォーカスを当ててください。セキュリティ上の理由から、直接のテキスト入力はサポートされていません。
 
 ---
 

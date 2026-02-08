@@ -7,7 +7,7 @@ It provides AI with "eyes" (vision), "ears" (hearing), and "limbs" (input contro
 
 - **Vision (Screen Capture)**: Capture monitors, specific windows, or arbitrary regions.
 - **Hearing (Audio & Transcription)**: Record system audio or microphone, with high-quality local transcription using Whisper AI.
-- **Limbs (Desktop Input)**: Mouse movement, clicking, dragging, keyboard typing (Unicode support), and special key operations.
+- **Limbs (Desktop Input)**: Mouse movement, clicking, dragging, and safe navigation key operations (security restricted).
 - **Live Monitoring (Streaming)**: Monitor screen changes in real-time, viewable via HTTP streaming in a browser.
 
 ## Quick Start
@@ -45,8 +45,7 @@ Add this to your `%AppData%\Roaming\Claude\claude_desktop_config.json`:
 - `mouse_move`: Move cursor to specific coordinates.
 - `mouse_click`: Left/Right/Middle click, and double-clicks.
 - `mouse_drag`: Drag and drop operations.
-- `keyboard_type`: Type text (Unicode support).
-- `keyboard_key`: Press special keys (Enter, Tab, Win, Ctrl+C, etc.).
+- `keyboard_key`: Press safe navigation keys (Enter, Tab, arrow keys, etc.). Text typing and modifier keys (Ctrl, Alt, Win) are blocked for security.
 
 For detailed arguments and examples, see the [**Tools Guide**](docs/TOOLS.md).
 

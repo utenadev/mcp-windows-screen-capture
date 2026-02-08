@@ -7,7 +7,7 @@ AI に Windows の「目（視覚）」「耳（聴覚）」「手足（操作�
 
 - **視覚 (Screen Capture)**: モニター、特定のウィンドウ、または任意領域のキャプチャ。
 - **聴覚 (Audio & Transcription)**: システム音やマイクの録音、および Whisper AI による高品質なローカル文字起こし。
-- **手足 (Desktop Input)**: マウス移動、クリック、ドラッグ、キーボード入力（Unicode対応）、特殊キー操作。
+- **手足 (Desktop Input)**: マウス移動、クリック、ドラッグ、安全なナビゲーションキー操作（セキュリティ制限付き）。
 - **ライブ監視 (Streaming)**: 画面の変更をリアルタイムで監視し、HTTP ストリーミングでブラウザから確認可能。
 
 ## クイックスタート
@@ -45,8 +45,7 @@ dotnet build src/WindowsDesktopUse.App/WindowsDesktopUse.App.csproj -c Release
 - `mouse_move`: 指定座標へのカーソル移動。
 - `mouse_click`: 左/右/中クリック、ダブルクリック。
 - `mouse_drag`: ドラッグ＆ドロップ操作。
-- `keyboard_type`: 文字列の入力（Unicode対応）。
-- `keyboard_key`: 特殊キー（Enter, Tab, Win, Ctrl+C 等）の操作。
+- `keyboard_key`: 安全なナビゲーションキー（Enter, Tab, 矢印キー等）の操作。セキュリティのため、テキスト入力と修飾キー（Ctrl, Alt, Win）はブロックされています。
 
 詳細な引数や使用例については、[**ツールガイド**](docs/TOOLS.ja.md) を参照してください。
 
