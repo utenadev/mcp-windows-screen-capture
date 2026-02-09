@@ -96,6 +96,11 @@ public class ScreenCaptureService {
 - Return null for optional parameters: `JsonElement? Params`
 - Use nullable reference types: `string?`, `object?`
 
+### Logging - CRITICAL
+**STRICT REQUIREMENT:** Always use `Console.Error.WriteLine` for logging.
+
+**REASON:** The `stdio` transport uses `stdout` for JSON-RPC messages. Writing logs to `stdout` will corrupt the protocol stream and cause the MCP client to disconnect.
+
 ### Formatting
 - **Indentation:** 4 spaces
 - **Braces:** K&R style, omit for single-line blocks
@@ -126,8 +131,23 @@ struct RECT { public int Left, Top, Right, Bottom; }
 - Use `JsonElement` for dynamic JSON parsing
 - Use `System.Text.Json` (built-in, no Newtonsoft.Json)
 
+## Technical Stack Details
+
+### Core Technologies
+- **Screen Capture:** GDI+ (`System.Drawing.Common`) and Win32 APIs. Foundation for `Windows.Graphics.Capture` is present.
+- **Audio Capture:** `NAudio` (WASAPI for system audio, WaveIn for microphones).
+- **Speech Recognition:** `Whisper.net` (OpenAI Whisper bindings for .NET).
+- **CLI Framework:** `System.CommandLine` for command-line interface.
+
+### Platform-Specific Notes
+- **Win32/GDI+ Interaction:** Be careful with DPI awareness (`SetProcessDPIAware`) when calculating screen coordinates.
+- **Whisper Models:** Models are automatically downloaded from Hugging Face on first use (~74MB).
+- **GDI+ vs Modern Capture:** Current implementation primarily uses GDI+ for compatibility. `ModernCaptureService` is a stub for future `Windows.Graphics.Capture` implementation.
+
 ## Dependencies
 - `System.Drawing.Common` (8.0.0) - GDI+ screen capture
+- `NAudio` - Audio capture APIs
+- `Whisper.net` - Speech-to-text transcription
 - `System.CommandLine` (2.0.0-beta4) - CLI argument parsing
 - ASP.NET Core (via Web SDK) - HTTP server and SSE
 
@@ -136,11 +156,19 @@ struct RECT { public int Left, Top, Right, Bottom; }
 - May require Administrator privileges for capturing certain windows
 - Firewall rule needed for WSL2 access: `netsh advfirewall firewall add rule name="MCP Screen Capture" dir=in action=allow protocol=TCP localport=5000 remoteip=172.16.0.0/12`
 
+## CI/CD
+GitHub Actions workflow builds and publishes artifacts on push to main/master.
+
 ## Language Policy
 - **Source code comments**: English only
 - **Commit messages**: English only (e.g., "Fix build errors in GitHub Actions workflow")
 - **User conversation**: Japanese ( user's preferred language)
 - **Documentation**: English preferred, Japanese allowed for some documents (e.g., `docs/NextOrder.md`)
+
+## Windows-Specific Considerations
+- Must run on Windows (uses user32.dll GDI APIs)
+- May require Administrator privileges for capturing certain windows
+- Firewall rule needed for WSL2 access: `netsh advfirewall firewall add rule name="MCP Screen Capture" dir=in action=allow protocol=TCP localport=5000 remoteip=172.16.0.0/12`
 
 ## Git Operations
 
@@ -186,3 +214,51 @@ GitHub Actions workflow builds and publishes artifacts on push to main/master.
 - `git branch` - List branches
 - Reading files - To understand codebase
 - Build/test commands - To verify changes
+
+## Configuration Change Safety Rules
+
+**CRITICAL:** When modifying project configuration or build settings, ALWAYS follow this checklist:
+
+### Build Configuration Changes (.csproj, Directory.Build.props)
+When changing these properties, verify dependent files:
+- **`<AssemblyName>`** - Update all references in:
+  - E2E tests (`tests/E2ETests/McpE2ETests.cs` - `GetServerPath()` method)
+  - Documentation referencing executable name
+  - CI/CD workflows if they reference the exe name
+  
+- **`<OutputPath>` or `<PublishDir>`** - Verify:
+  - Test project path resolution
+  - CI artifact upload paths
+  - Documentation examples
+
+- **`<TargetFramework>`** - Check:
+  - All project references compatibility
+  - CI workflow .NET version setup
+  - Package dependencies compatibility
+
+### Pre-Commit Verification Checklist
+Before pushing changes that modify:
+1. **.csproj files** → Run: `dotnet build && dotnet test`
+2. **CI workflows (.github/workflows/)** → Run: `act` or verify on feature branch first
+3. **Project structure** → Verify all `ProjectReference` paths are valid
+
+### Error Pattern Recognition
+If CI fails with:
+- `FileNotFoundException` for `.exe` → Check if `AssemblyName` was changed
+- `Path is empty` → Check if array iteration includes empty strings
+- `Project not found` → Verify `.sln` file includes all projects
+
+### User Instruction Change Protocol
+When user changes requirements (e.g., "executable name should be simpler"):
+1. Confirm the exact scope of change
+2. Identify ALL files that reference the old value
+3. Present the complete list of changes needed
+4. Get approval for the full impact before making ANY changes
+5. Make all changes atomically in a single commit
+
+### Test Synchronization Rule
+**NEVER** change build output without updating tests that depend on those outputs. Common dependencies:
+- Test server path resolution
+- Expected file names in assertions
+- Process spawning commands
+- Documentation code examples
