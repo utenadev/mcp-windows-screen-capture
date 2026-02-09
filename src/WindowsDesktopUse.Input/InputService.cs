@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Diagnostics;
 
 namespace WindowsDesktopUse.Input;
 
@@ -35,6 +36,9 @@ public class InputService
     [DllImport("user32.dll")]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
 
     [StructLayout(LayoutKind.Sequential)]
     struct POINT
@@ -262,6 +266,29 @@ public class InputService
                 SendVirtualKey(virtualKey, false);
                 SendVirtualKey(virtualKey, true);
                 break;
+        }
+    }
+
+    /// <summary>
+    /// Terminate the process that owns the specified window
+    /// </summary>
+    public void TerminateWindowProcess(IntPtr hWnd)
+    {
+        GetWindowThreadProcessId(hWnd, out var processId);
+        if (processId == 0) return;
+
+        try
+        {
+            var process = Process.GetProcessById((int)processId);
+            process.Kill(true);
+        }
+        catch (ArgumentException)
+        {
+            // Process already exited
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[Input] Failed to terminate process {processId}: {ex.Message}");
         }
     }
 

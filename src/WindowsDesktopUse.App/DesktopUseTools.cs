@@ -603,4 +603,12 @@ public static class DesktopUseTools
 
         _inputService.PressKey(virtualKey, keyAction);
     }
+
+    [McpServerTool, Description("Close a window by its handle (HWND)")]
+    public static void CloseWindow(
+        [Description("Window handle (HWND) to close")] long hwnd)
+    {
+        if (_inputService == null) throw new InvalidOperationException("InputService not initialized");
+        _inputService.TerminateWindowProcess(new IntPtr(hwnd));
+    }
 }
