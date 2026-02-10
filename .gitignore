@@ -48,5 +48,8 @@ publish/
 publish_single/
 publish_test/
 
+# Artifacts
+t/
+
 # Windows special files
 nul

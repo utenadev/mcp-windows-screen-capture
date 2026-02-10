@@ -235,6 +235,9 @@ public static class DesktopUseTools
         [Description("Maximum width")] int maxWidth = 1920)
     {
         if (_capture == null) throw new InvalidOperationException("ScreenCaptureService not initialized");
+        if (target == null) throw new ArgumentNullException(nameof(target), "Target type cannot be null");
+        if (quality < 1 || quality > 100) throw new ArgumentOutOfRangeException(nameof(quality), "Quality must be between 1 and 100");
+        if (maxWidth < 1) throw new ArgumentOutOfRangeException(nameof(maxWidth), "MaxWidth must be greater than 0");
 
         string imageData;
         string actualTargetType = target;
@@ -242,7 +245,7 @@ public static class DesktopUseTools
         int capturedWidth = 0;
         int capturedHeight = 0;
 
-        switch (target.ToLower())
+        switch (target.ToLowerInvariant())
         {
             case "primary":
                 imageData = _capture.CaptureSingle(0, maxWidth, quality);
@@ -258,6 +261,7 @@ public static class DesktopUseTools
                 break;
 
             case "window":
+                if (targetId == null) throw new ArgumentNullException(nameof(targetId), "Target ID is required for window capture");
                 if (!long.TryParse(targetId, out var hwnd))
                     throw new ArgumentException("Invalid window handle");
                 imageData = _capture.CaptureWindow(hwnd, maxWidth, quality);
@@ -276,7 +280,7 @@ public static class DesktopUseTools
                 break;
 
             default:
-                throw new ArgumentException($"Unknown target type: {target}");
+                throw new ArgumentException($"Unknown target type: {target}. Valid values are 'primary', 'monitor', 'window', 'region'");
         }
 
         var base64Data = imageData.Contains(";base64,") ? imageData.Split(';')[1].Split(',')[1] : imageData;
@@ -301,8 +305,12 @@ public static class DesktopUseTools
         [Description("Maximum width")] int maxWidth = 1920)
     {
         if (_capture == null) throw new InvalidOperationException("ScreenCaptureService not initialized");
+        if (server == null) throw new ArgumentNullException(nameof(server), "McpServer cannot be null");
+        if (target == null) throw new ArgumentNullException(nameof(target), "Target type cannot be null");
         if (intervalMs < 100)
-            throw new ArgumentException("Interval must be at least 100ms");
+            throw new ArgumentOutOfRangeException(nameof(intervalMs), "Interval must be at least 100ms");
+        if (quality < 1 || quality > 100) throw new ArgumentOutOfRangeException(nameof(quality), "Quality must be between 1 and 100");
+        if (maxWidth < 1) throw new ArgumentOutOfRangeException(nameof(maxWidth), "MaxWidth must be greater than 0");
 
         _capture.OnFrameCaptured = async (sessionId, imageData) =>
         {
@@ -322,16 +330,18 @@ public static class DesktopUseTools
         string sessionId;
         string actualTargetId = targetId ?? "0";
 
-        switch (target.ToLower())
+        switch (target.ToLowerInvariant())
         {
             case "monitor":
-                if (!uint.TryParse(targetId ?? "0", out var monitorIdx))
+                if (targetId == null) throw new ArgumentNullException(nameof(targetId), "Target ID is required for monitor target");
+                if (!uint.TryParse(targetId, out var monitorIdx))
                     throw new ArgumentException("Invalid monitor index");
                 sessionId = _capture.StartStream(monitorIdx, intervalMs, quality, maxWidth);
                 actualTargetId = monitorIdx.ToString();
                 break;
 
             case "window":
+                if (targetId == null) throw new ArgumentNullException(nameof(targetId), "Target ID is required for window target");
                 if (!long.TryParse(targetId, out var hwnd))
                     throw new ArgumentException("Invalid window handle");
                 sessionId = _capture.StartWindowStream(hwnd, intervalMs, quality, maxWidth);
@@ -339,7 +349,7 @@ public static class DesktopUseTools
                 break;
 
             default:
-                throw new ArgumentException($"Target type '{target}' not supported");
+                throw new ArgumentException($"Target type '{target}' not supported. Valid values are 'monitor', 'window'");
         }
 
         return new WatchSession(sessionId, target, actualTargetId, intervalMs, "active");
@@ -412,10 +422,13 @@ public static class DesktopUseTools
         {
             throw new InvalidOperationException("WhisperTranscriptionService not initialized");
         }
+        if (source == null) throw new ArgumentNullException(nameof(source), "Source cannot be null");
+        if (modelSize == null) throw new ArgumentNullException(nameof(modelSize), "Model size cannot be null");
+        if (duration < 1) throw new ArgumentOutOfRangeException(nameof(duration), "Duration must be at least 1 second");
 
         if (!Enum.TryParse<WhisperModelSize>(modelSize, true, out var modelSizeEnum))
         {
-            throw new ArgumentException($"Invalid model size: {modelSize}");
+            throw new ArgumentException($"Invalid model size: {modelSize}. Valid values are 'tiny', 'base', 'small', 'medium', 'large'");
         }
 
         string? audioFilePath = null;
@@ -423,7 +436,7 @@ public static class DesktopUseTools
 
         try
         {
-            switch (source.ToLower())
+            switch (source.ToLowerInvariant())
             {
                 case "file":
                     if (string.IsNullOrEmpty(sourceId))
@@ -455,7 +468,7 @@ public static class DesktopUseTools
                 case "microphone":
                 case "system":
                     _audioCapture ??= new AudioCaptureService();
-                    var captureSource = source.ToLower() == "microphone" ? AudioCaptureSource.Microphone : AudioCaptureSource.System;
+                    var captureSource = source.ToLowerInvariant() == "microphone" ? AudioCaptureSource.Microphone : AudioCaptureSource.System;
                     var session = _audioCapture.StartCapture(captureSource, 16000);
 
                     Console.WriteLine($"[Listen] Recording {source} audio for {duration} seconds...");
@@ -471,7 +484,7 @@ public static class DesktopUseTools
                     break;
 
                 default:
-                    throw new ArgumentException($"Unknown source: {source}");
+                    throw new ArgumentException($"Unknown source: {source}. Valid values are 'microphone', 'system', 'file', 'audio_session'");
             }
 
             Console.WriteLine($"[Listen] Transcribing with {modelSize} model...");
@@ -541,13 +554,15 @@ public static class DesktopUseTools
         [Description("Click count")] int count = 1)
     {
         if (_inputService == null) throw new InvalidOperationException("InputService not initialized");
+        if (button == null) throw new ArgumentNullException(nameof(button), "Button cannot be null");
+        if (count < 1) throw new ArgumentOutOfRangeException(nameof(count), "Click count must be at least 1");
 
-        var mouseButton = button.ToLower() switch
+        var mouseButton = button.ToLowerInvariant() switch
         {
             "left" => MouseButton.Left,
             "right" => MouseButton.Right,
             "middle" => MouseButton.Middle,
-            _ => MouseButton.Left
+            _ => throw new ArgumentException($"Invalid button: {button}. Valid values are 'left', 'right', 'middle'")
         };
 
         _inputService.ClickMouse(mouseButton, count);
