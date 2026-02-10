@@ -184,7 +184,7 @@ public class InputService
 
             if (i < count - 1)
             {
-                Thread.Sleep(50);
+                await Task.Delay(50);
             }
         }
     }
@@ -196,7 +196,7 @@ public class InputService
     {
         // Move to start position
         MoveMouse(startX, startY);
-        Thread.Sleep(50);
+        await Task.Delay(50);
 
         // Mouse down at start position
         var downInput = new INPUT
@@ -216,11 +216,11 @@ public class InputService
             }
         };
         SendInput(1, new[] { downInput }, Marshal.SizeOf(typeof(INPUT)));
-        Thread.Sleep(50);
+        await Task.Delay(50);
 
         // Move to end position
         MoveMouse(endX, endY);
-        Thread.Sleep(50);
+        await Task.Delay(50);
 
         // Mouse up at end position
         var upInput = new INPUT

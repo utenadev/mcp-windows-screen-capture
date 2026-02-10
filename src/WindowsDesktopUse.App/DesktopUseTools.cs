@@ -502,7 +502,7 @@ public static class DesktopUseTools
                     var session = _audioCapture.StartCapture(captureSource, 16000);
 
                     Console.WriteLine($"[Listen] Recording {(source == AudioSourceType.Microphone ? "microphone" : "system")} audio for {duration} seconds...");
-                    Thread.Sleep(TimeSpan.FromSeconds(duration));
+                    await Task.Delay(TimeSpan.FromSeconds(duration));
 
                     var capturedAudio = _audioCapture.StopCapture(session.SessionId, false);
                     audioFilePath = capturedAudio.OutputPath;
