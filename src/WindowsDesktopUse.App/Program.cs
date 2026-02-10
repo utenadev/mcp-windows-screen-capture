@@ -3,6 +3,8 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using WindowsDesktopUse.App;
 using WindowsDesktopUse.Audio;
 using WindowsDesktopUse.Input;
@@ -48,7 +50,7 @@ var doctorJsonOption = new Option<bool>(
 doctorCmd.AddOption(doctorVerboseOption);
 doctorCmd.AddOption(doctorJsonOption);
 
-// Setup command options  
+// Setup command options
 var setupConfigPathOption = new Option<string?>(
     name: "--config-path",
     description: GetText("Custom path for Claude Desktop config file", "Claude Desktop設定ファイルのカスタムパス"),
@@ -620,28 +622,45 @@ rootCmd.AddOption(desktopOption);
 rootCmd.AddOption(httpPortOption);
 rootCmd.AddOption(testOption);
 
-rootCmd.SetHandler((desktop, httpPort, testWhisper) =>
+// Create a service provider to be used by the tools
+ServiceProvider? serviceProvider = null;
+
+rootCmd.SetHandler(async (desktop, httpPort, testWhisper) =>
 {
     SetProcessDPIAware();
 
-    var captureService = new ScreenCaptureService(desktop);
-    captureService.InitializeMonitors();
+    // Create service collection and register services
+    var services = new ServiceCollection();
+    
+    // Register singleton services
+    services.AddSingleton<ScreenCaptureService>(provider => 
+    {
+        var service = new ScreenCaptureService(desktop);
+        service.InitializeMonitors();
+        return service;
+    });
+    services.AddSingleton<AudioCaptureService>();
+    services.AddSingleton<WhisperTranscriptionService>();
+    services.AddSingleton<InputService>();
+    
+    serviceProvider = services.BuildServiceProvider();
+
+    // Initialize static tools with services
+    var captureService = serviceProvider.GetRequiredService<ScreenCaptureService>();
+    var audioCaptureService = serviceProvider.GetRequiredService<AudioCaptureService>();
+    var whisperService = serviceProvider.GetRequiredService<WhisperTranscriptionService>();
+    var inputService = serviceProvider.GetRequiredService<InputService>();
+    
     DesktopUseTools.SetCaptureService(captureService);
-
-    var audioCaptureService = new AudioCaptureService();
     DesktopUseTools.SetAudioCaptureService(audioCaptureService);
-
-    var whisperService = new WhisperTranscriptionService();
     DesktopUseTools.SetWhisperService(whisperService);
-
-    var inputService = new InputService();
     DesktopUseTools.SetInputService(inputService);
 
     if (testWhisper)
     {
         Console.Error.WriteLine("[TEST] Testing Whisper transcription...");
         Console.Error.WriteLine("[TEST] Please play audio on YouTube! Starting in 3 seconds...");
-        Thread.Sleep(3000);
+        await Task.Delay(3000); // Use async delay instead of Thread.Sleep
 
         try
         {
