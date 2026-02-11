@@ -26,7 +26,8 @@ AI に Windows の「目（視覚）」「耳（聴覚）」「手足（操作�
 #### 2. Claude Desktop の設定
 **方法 A：自動セットアップ**
 ```powershell
-C:\Tools\WindowsDesktopUse\WindowsDesktopUse.App.exe setup
+cd C:\Tools\WindowsDesktopUse
+WindowsDesktopUse.exe setup
 ```
 
 **方法 B：手動設定**
@@ -35,7 +36,7 @@ C:\Tools\WindowsDesktopUse\WindowsDesktopUse.App.exe setup
 {
   "mcpServers": {
     "windows-desktop-use": {
-      "command": "C:\\Tools\\WindowsDesktopUse\\WindowsDesktopUse.App.exe",
+      "command": "C:\Tools\WindowsDesktopUse\WindowsDesktopUse.exe",
       "args": ["--httpPort", "5000"]
     }
   }

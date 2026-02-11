@@ -24,7 +24,8 @@ If you don't have a development environment, you can use the pre-built executabl
 ### 2. Configure Claude Desktop
 **Option A: Automatic setup**
 ```powershell
-C:\Tools\WindowsDesktopUse\WindowsDesktopUse.App.exe setup
+cd C:\Tools\WindowsDesktopUse
+WindowsDesktopUse.exe setup
 ```
 
 **Option B: Manual setup**
@@ -33,7 +34,7 @@ Add this to your `%AppData%\Roaming\Claude\claude_desktop_config.json`:
 {
   "mcpServers": {
     "windows-desktop-use": {
-      "command": "C:\\Tools\\WindowsDesktopUse\\WindowsDesktopUse.App.exe",
+      "command": "C:\\Tools\\WindowsDesktopUse\\WindowsDesktopUse.exe",
       "args": ["--httpPort", "5000"]
     }
   }
