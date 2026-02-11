@@ -71,15 +71,27 @@ public static class DesktopUseTools
         return ScreenCaptureService.GetWindows();
     }
 
+    /// <summary>
+    /// Captures a screenshot of specified monitor or window.
+    /// Accepts hwnd as string (e.g. "655936") for robustness against JSON number/string ambiguity.
+    /// </summary>
     [McpServerTool, Description("Capture a screenshot of specified monitor or window. Returns the captured image as base64 JPEG.")]
     public static ImageContentBlock See(
         [Description("Target type: 'monitor' or 'window'")] string targetType = "monitor",
         [Description("Monitor index (0=primary) - used when targetType='monitor'")] uint monitor = 0,
-        [Description("Window handle (HWND) - used when targetType='window'")] long? hwnd = null,
+        [Description("Window handle (HWND) as string or number - used when targetType='window'")] string hwndStr = null,
         [Description("JPEG quality (1-100)")] int quality = 80,
         [Description("Maximum width in pixels")] int maxWidth = 1920)
     {
         if (_capture == null) throw new InvalidOperationException("ScreenCaptureService not initialized");
+
+        long? hwnd = null;
+        if (!string.IsNullOrWhiteSpace(hwndStr))
+        {
+            if (!long.TryParse(hwndStr, out var h))
+                throw new ArgumentException($"Invalid hwnd value: '{hwndStr}'. Expected integer string.");
+            hwnd = h;
+        }
 
         var imageData = targetType == "window" && hwnd.HasValue
             ? ScreenCaptureService.CaptureWindow(hwnd.Value, maxWidth, quality)
@@ -133,17 +145,29 @@ public static class DesktopUseTools
         };
     }
 
+    /// <summary>
+    /// Starts a continuous screen capture stream.
+    /// Accepts hwnd as string for compatibility with JSON clients that serialize numbers as strings.
+    /// </summary>
     [McpServerTool, Description("Start a continuous screen capture stream")]
     public static string StartWatching(
         McpServer server,
         [Description("Target type: 'monitor' or 'window'")] string targetType = "monitor",
         [Description("Monitor index")] uint monitor = 0,
-        [Description("Window handle")] long? hwnd = null,
+        [Description("Window handle as string or number")] string hwndStr = null,
         [Description("Capture interval in milliseconds")] int intervalMs = 1000,
         [Description("JPEG quality")] int quality = 80,
         [Description("Maximum width")] int maxWidth = 1920)
     {
         if (_capture == null) throw new InvalidOperationException("ScreenCaptureService not initialized");
+
+        long? hwnd = null;
+        if (!string.IsNullOrWhiteSpace(hwndStr))
+        {
+            if (!long.TryParse(hwndStr, out var h))
+                throw new ArgumentException($"Invalid hwnd value: '{hwndStr}'. Expected integer string.");
+            hwnd = h;
+        }
 
         _capture.OnFrameCaptured = async (sessionId, imageData) =>
         {
@@ -645,11 +669,17 @@ public static class DesktopUseTools
         InputService.PressKey(virtualKey, keyAction);
     }
 
+    /// <summary>
+    /// Closes a window by its handle (HWND).
+    /// Accepts hwnd as string for compatibility with JSON clients that serialize numbers as strings.
+    /// </summary>
     [McpServerTool, Description("Close a window by its handle (HWND)")]
     public static void CloseWindow(
-        [Description("Window handle (HWND) to close")] long hwnd)
+        [Description("Window handle (HWND) as string or number to close")] string hwndStr)
     {
-        
+        if (!long.TryParse(hwndStr, out var hwnd))
+            throw new ArgumentException($"Invalid hwnd: '{hwndStr}'. Must be integer.");
+
         InputService.TerminateWindowProcess(new IntPtr(hwnd));
     }
 }
