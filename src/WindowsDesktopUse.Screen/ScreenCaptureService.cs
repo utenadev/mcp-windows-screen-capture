@@ -24,7 +24,9 @@ public class ScreenCaptureService
         Console.Error.WriteLine($"[Capture] Found {_monitors.Count} monitors");
     }
 
+#pragma warning disable CA1024
     public IReadOnlyList<MonitorInfo> GetMonitors() => _monitors;
+#pragma warning restore CA1024
 
     public string CaptureSingle(uint idx, int maxW, int quality)
     {
@@ -59,7 +61,11 @@ public class ScreenCaptureService
 
     public void StopStream(string id)
     {
-        if (_sessions.Remove(id, out var s)) s.Cts.Cancel();
+        if (_sessions.Remove(id, out var s))
+        {
+            s.Cts.Cancel();
+            s.Cts.Dispose();
+        }
     }
 
     public bool TryGetSession(string id, out StreamSession? s) => _sessions.TryGetValue(id, out s);
