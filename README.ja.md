@@ -36,7 +36,7 @@ WindowsDesktopUse.exe setup
 {
   "mcpServers": {
     "windows-desktop-use": {
-      "command": "C:\Tools\WindowsDesktopUse\WindowsDesktopUse.exe",
+      "command": "C:\\Tools\\WindowsDesktopUse\\WindowsDesktopUse.exe",
       "args": ["--httpPort", "5000"]
     }
   }
