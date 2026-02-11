@@ -17,9 +17,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Development Guidelines**: Updated `AGENTS.md` to standardize on `rg` (ripgrep) and Japanese communication for developers.
 - **Incident Report**: Added `docs/report/report_20260209_notepad_e2e_fix.md` documenting the challenges with Windows 11 Notepad automation.
 
+### Changed
+- **Code Quality Improvements**: Resolved all static analysis warnings and improved maintainability.
+  - Fixed culture-dependent method calls (CA1304, CA1305, CA1307, CA1308, CA1311).
+  - Implemented proper IDisposable pattern (CA1063, CA1816, CA1001).
+  - Used read-only collections where appropriate (CA1002).
+  - Added ConfigureAwait(false) to async method calls (CA2007).
+  - Marked static holder class as static (CA1052).
+  - Extracted nested VirtualKeys class to top-level (CA1034).
+  - Fixed method return value usage (CA1806, CA1822).
+- **Async Optimization**: Replaced Thread.Sleep with Task.Delay for better async performance.
+- **Test Code Quality**: Fixed all static analysis warnings in E2E tests (CA1031, CA1050, CA1307, CA1310, CA1707).
+
 ### Fixed
 - Stabilized E2E tests by ensuring a fresh application instance is used for each suite.
 - Fixed `NullReferenceException` in window enumeration when titles are null.
+- **Build Errors**: Resolved async method call issues.
+  - Updated `StopCapture` to `StopCaptureAsync` in DesktopUseTools.
+  - Made Listen method async to properly handle await calls.
+  - Added missing await keywords in Program.cs.
+- **Null Safety**: Fixed NullReferenceException risks in DesktopUseTools with enhanced null checks.
+
+### Security
+- **Input Validation**: Enhanced error handling and parameter validation in DesktopUseTools.
 
 ## [3.0.0] - 2026-02-08
 ...

@@ -10,7 +10,40 @@ It provides AI with "eyes" (vision), "ears" (hearing), and "limbs" (input contro
 - **Limbs (Desktop Input)**: Mouse movement, clicking, dragging, and safe navigation key operations (security restricted).
 - **Live Monitoring (Streaming)**: Monitor screen changes in real-time, viewable via HTTP streaming in a browser.
 
-## Quick Start
+## For Non-Developers (Pre-built .exe)
+
+If you don't have a development environment, you can use the pre-built executable from [Releases](../../releases).
+
+### 1. Download
+1. Go to the [Releases page](../../releases)
+2. Download the latest `WindowsDesktopUse.zip`
+3. Extract to your preferred location (e.g., `C:\Tools\WindowsDesktopUse`)
+
+### 2. Configure Claude Desktop
+**Option A: Automatic setup**
+```powershell
+C:\Tools\WindowsDesktopUse\WindowsDesktopUse.App.exe setup
+```
+
+**Option B: Manual setup**
+Add this to your `%AppData%\Roaming\Claude\claude_desktop_config.json`:
+```json
+{
+  "mcpServers": {
+    "windows-desktop-use": {
+      "command": "C:\\Tools\\WindowsDesktopUse\\WindowsDesktopUse.App.exe",
+      "args": ["--httpPort", "5000"]
+    }
+  }
+}
+```
+
+### 3. Restart Claude Desktop
+Close and reopen Claude Desktop to load the new MCP server.
+
+---
+
+## For Developers (Build from Source)
 
 ### 1. Build
 ```powershell
