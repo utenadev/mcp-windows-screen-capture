@@ -6,7 +6,7 @@ namespace WindowsDesktopUse.Screen;
 /// <summary>
 /// Visual change detection using grid-based pixel sampling
 /// </summary>
-public class VisualChangeDetector : IDisposable
+public sealed class VisualChangeDetector : IDisposable
 {
     private Bitmap? _previousFrame;
     private DateTime _lastKeyFrameTime;

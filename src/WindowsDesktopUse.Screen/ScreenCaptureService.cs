@@ -70,6 +70,12 @@ public class ScreenCaptureService
 
     public bool TryGetSession(string id, out StreamSession? s) => _sessions.TryGetValue(id, out s);
 
+    public StreamSession? GetSession(string id)
+    {
+        _sessions.TryGetValue(id, out var s);
+        return s;
+    }
+
     public void StopAllStreams()
     {
         Console.Error.WriteLine($"[Capture] Stopping all {_sessions.Count} streams...");

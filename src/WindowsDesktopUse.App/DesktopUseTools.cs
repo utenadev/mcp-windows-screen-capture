@@ -849,4 +849,181 @@ public static class DesktopUseTools
             ["ocrText"] = payload.OcrText
         };
     }
+
+    // ============ SPIRAL 1: UNIFIED VIDEO/AUDIO STREAM ============
+
+    private static readonly Dictionary<string, DateTime> _unifiedSessionStartTimes = new();
+
+    /// <summary>
+    /// Prototype tool for unified video and audio capture with synchronized timeline.
+    /// Combines camera_capture_stream and Listen functionality with RelativeTime.
+    /// </summary>
+    [McpServerTool, Description("[PROTOTYPE v1] Start unified video/audio capture with synchronized timeline. Combines visual and audio streams with RelativeTime for LLM consumption.")]
+    public static async Task<string> WatchVideoV1(
+        McpServer server,
+        [Description("X coordinate of capture region")] int x,
+        [Description("Y coordinate of capture region")] int y,
+        [Description("Width of capture region")] int w,
+        [Description("Height of capture region")] int h,
+        [Description("JPEG quality (1-100), default 60")] int quality = 60,
+        [Description("Frame rate, default 10")] int fps = 10,
+        [Description("Transcription model size (tiny/base/small/medium/large), default 'base'")] string modelSize = "base",
+        [Description("Enable audio transcription, default true")] bool enableAudio = true,
+        [Description("Audio duration in seconds, default 30")] int audioDuration = 30)
+    {
+        if (_capture == null)
+            throw new InvalidOperationException("ScreenCaptureService not initialized");
+
+        if (w <= 0 || h <= 0)
+            throw new ArgumentException("Width and height must be positive");
+        if (quality < 1 || quality > 100)
+            throw new ArgumentOutOfRangeException(nameof(quality), "Quality must be between 1 and 100");
+
+        var sessionId = Guid.NewGuid().ToString();
+        var sessionStartTime = DateTime.UtcNow;
+        
+        Console.Error.WriteLine($"[WatchVideoV1] Starting unified stream: {sessionId}");
+        Console.Error.WriteLine($"[WatchVideoV1] Region: ({x}, {y}) {w}x{h}, FPS: {fps}, Quality: {quality}");
+
+        try
+        {
+            // Start video capture
+            var videoSessionId = _capture.StartRegionStream2(x, y, w, h, quality);
+            
+            // Store session start time for unified timeline
+            lock (_unifiedSessionStartTimes)
+            {
+                _unifiedSessionStartTimes[sessionId] = sessionStartTime;
+            }
+
+            // Start audio capture if enabled
+            if (enableAudio && _audioCapture != null && _whisperService != null)
+            {
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        // Start audio capture
+                        var audioSession = _audioCapture.StartCapture(AudioCaptureSource.System);
+                        Console.Error.WriteLine($"[WatchVideoV1] Audio capture started: {audioSession.SessionId}");
+
+                        // Process audio in segments
+                        while (_unifiedSessionStartTimes.ContainsKey(sessionId))
+                        {
+                            await Task.Delay(audioDuration * 1000).ConfigureAwait(false);
+                            
+                            if (!_unifiedSessionStartTimes.ContainsKey(sessionId))
+                                break;
+
+                            var segmentStartTime = DateTime.UtcNow;
+                            var result = await _audioCapture.StopCaptureAsync(audioSession.SessionId, false).ConfigureAwait(false);
+                            
+                            if (!string.IsNullOrEmpty(result.OutputPath) && File.Exists(result.OutputPath))
+                            {
+                                // Transcribe
+                                var model = Enum.TryParse<WhisperModelSize>(modelSize, true, out var parsed) ? parsed : WhisperModelSize.Base;
+                                var transcript = await _whisperService.TranscribeFileAsync(
+                                    result.OutputPath,
+                                    language: null, // Use OS default
+                                    modelSize: model,
+                                    ct: default
+                                ).ConfigureAwait(false);
+
+                                // Send each segment with relative time
+                                foreach (var segment in transcript.Segments)
+                                {
+                                    var relativeTime = (segmentStartTime - sessionStartTime).TotalSeconds + segment.Start.TotalSeconds;
+                                    
+                                    var notificationData = new Dictionary<string, object?>
+                                    {
+                                        ["level"] = "info",
+                                        ["data"] = new Dictionary<string, object>
+                                        {
+                                            ["sessionId"] = sessionId,
+                                            ["type"] = "audio",
+                                            ["relativeTime"] = relativeTime,
+                                            ["systemTime"] = DateTime.UtcNow.ToString("O"),
+                                            ["language"] = transcript.Language,
+                                            ["text"] = segment.Text
+                                        }
+                                    };
+
+                                    await server.SendNotificationAsync("notifications/message", notificationData).ConfigureAwait(false);
+                                    Console.Error.WriteLine($"[WatchVideoV1] Audio: relativeTime={relativeTime:F2}s, text={segment.Text}");
+                                }
+                            }
+
+                            // Restart capture for next segment
+                            audioSession = _audioCapture.StartCapture(AudioCaptureSource.System);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.Error.WriteLine($"[WatchVideoV1] Audio error: {ex.Message}");
+                    }
+                });
+            }
+
+            // Process video frames with relative time
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    if (_capture.TryGetSession(videoSessionId, out var videoSession) && videoSession != null)
+                    {
+                        await foreach (var frame in videoSession.Channel.Reader.ReadAllAsync(videoSession.Cts.Token))
+                        {
+                            var relativeTime = (DateTime.UtcNow - sessionStartTime).TotalSeconds;
+                            
+                            var notificationData = new Dictionary<string, object?>
+                            {
+                                ["level"] = "info",
+                                ["data"] = new Dictionary<string, object>
+                                {
+                                    ["sessionId"] = sessionId,
+                                    ["type"] = "video",
+                                    ["relativeTime"] = relativeTime,
+                                    ["systemTime"] = DateTime.UtcNow.ToString("O"),
+                                    ["hash"] = videoSession.LastFrameHash,
+                                    ["image"] = frame
+                                }
+                            };
+
+                            await server.SendNotificationAsync("notifications/message", notificationData).ConfigureAwait(false);
+                            Console.Error.WriteLine($"[WatchVideoV1] Video: relativeTime={relativeTime:F2}s");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"[WatchVideoV1] Video error: {ex.Message}");
+                }
+            });
+
+            Console.Error.WriteLine($"[WatchVideoV1] Unified stream started: {sessionId}");
+            return sessionId;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[WatchVideoV1] Error: {ex.Message}");
+            throw;
+        }
+    }
+
+    [McpServerTool, Description("[PROTOTYPE v1] Stop unified video/audio capture stream")]
+    public static string StopWatchVideoV1(
+        [Description("The session ID returned by watch_video_v1")] string sessionId)
+    {
+        lock (_unifiedSessionStartTimes)
+        {
+            if (_unifiedSessionStartTimes.ContainsKey(sessionId))
+            {
+                _unifiedSessionStartTimes.Remove(sessionId);
+                Console.Error.WriteLine($"[WatchVideoV1] Unified stream stopped: {sessionId}");
+                return $"Stopped unified stream {sessionId}";
+            }
+        }
+
+        return $"Session not found: {sessionId}";
+    }
 }

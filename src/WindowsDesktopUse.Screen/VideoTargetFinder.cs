@@ -7,7 +7,7 @@ namespace WindowsDesktopUse.Screen;
 /// <summary>
 /// UI Automation-based video target finder with dynamic tracking
 /// </summary>
-public class VideoTargetFinder : IDisposable
+public sealed class VideoTargetFinder : IDisposable
 {
     private readonly Dictionary<string, VideoTargetInfo> _trackedTargets = new();
     private readonly System.Timers.Timer _trackingTimer;

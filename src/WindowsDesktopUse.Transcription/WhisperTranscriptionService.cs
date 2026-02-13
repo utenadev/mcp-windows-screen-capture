@@ -1,3 +1,4 @@
+using System.Globalization;
 using NAudio.Wave;
 using Whisper.net;
 using Whisper.net.Ggml;
@@ -19,6 +20,16 @@ public class WhisperTranscriptionService : IDisposable
     {
         _modelDirectory = modelDirectory ?? Path.Combine(AppContext.BaseDirectory, "models");
         Directory.CreateDirectory(_modelDirectory);
+    }
+
+    /// <summary>
+    /// Get the default language from OS culture settings
+    /// </summary>
+    public static string GetDefaultLanguage()
+    {
+        var osLanguage = CultureInfo.CurrentCulture.TwoLetterISOLanguageName;
+        Console.Error.WriteLine($"[Whisper] OS Language detected: {osLanguage}");
+        return osLanguage;
     }
 
     /// <summary>
@@ -128,13 +139,16 @@ public class WhisperTranscriptionService : IDisposable
         var convertedPath = ConvertToWhisperFormat(audioPath);
 
         var segments = new List<TranscriptionSegment>();
-        var detectedLanguage = language ?? "auto";
+        
+        // Use OS language if not specified
+        var effectiveLanguage = language ?? GetDefaultLanguage();
+        var detectedLanguage = effectiveLanguage;
 
         var builder = _whisperFactory.CreateBuilder();
 
-        if (!string.IsNullOrEmpty(language))
+        if (!string.IsNullOrEmpty(effectiveLanguage))
         {
-            builder.WithLanguage(language);
+            builder.WithLanguage(effectiveLanguage);
         }
 
         if (translateToEnglish)

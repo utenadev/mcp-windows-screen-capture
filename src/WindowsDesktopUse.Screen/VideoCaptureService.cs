@@ -9,7 +9,7 @@ namespace WindowsDesktopUse.Screen;
 /// <summary>
 /// High-efficiency video capture service with optimized GDI+ processing
 /// </summary>
-public class VideoCaptureService : IDisposable
+public sealed class VideoCaptureService : IDisposable
 {
     private readonly VideoTargetFinder _targetFinder;
     private readonly Dictionary<string, VideoSession> _sessions = new();

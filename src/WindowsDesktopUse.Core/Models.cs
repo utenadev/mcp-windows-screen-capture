@@ -30,6 +30,12 @@ public class StreamSession : IDisposable
     public int RegionH { get; set; }
     public CancellationTokenSource Cts { get; set; } = new();
     public Channel<string> Channel { get; }
+    public DateTime StartTime { get; set; } = DateTime.UtcNow;
+
+    /// <summary>
+    /// Gets the relative time in seconds from session start
+    /// </summary>
+    public double GetRelativeTime() => (DateTime.UtcNow - StartTime).TotalSeconds;
 
     private string _latestFrame = "";
     private readonly object _frameLock = new();
@@ -274,4 +280,28 @@ public record VideoStreamConfig(
     bool EnableChangeDetection,
     double ChangeThreshold,
     int KeyFrameIntervalSeconds
+);
+
+/// <summary>
+/// Unified event payload for video and audio timeline integration
+/// </summary>
+public record UnifiedEventPayload(
+    string SessionId,
+    string SystemTime,
+    double RelativeTime,
+    string Type, // "video" or "audio"
+    string Data, // Base64 image or transcription text
+    UnifiedEventMetadata Metadata
+);
+
+/// <summary>
+/// Metadata for unified event payload
+/// </summary>
+public record UnifiedEventMetadata(
+    string? WindowTitle = null,
+    float? Volume = null,
+    string? Hash = null,
+    string? Language = null,
+    double? SegmentStartTime = null,
+    double? SegmentEndTime = null
 );
