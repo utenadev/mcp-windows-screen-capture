@@ -221,3 +221,57 @@ public record ModelInfo(
     string Performance,
     string BestFor
 );
+
+/// <summary>
+/// Video capture payload for LLM consumption
+/// </summary>
+public record VideoPayload(
+    string Timestamp,
+    string SystemTime,
+    VideoWindowInfo WindowInfo,
+    VideoVisualMetadata VisualMetadata,
+    string ImageData,
+    string? OcrText = null
+);
+
+/// <summary>
+/// Window information for video payload
+/// </summary>
+public record VideoWindowInfo(
+    string Title,
+    bool IsActive
+);
+
+/// <summary>
+/// Visual metadata for video payload
+/// </summary>
+public record VideoVisualMetadata(
+    bool HasChange,
+    string EventTag
+);
+
+/// <summary>
+/// Video target information for UI automation
+/// </summary>
+public record VideoTargetInfo(
+    IntPtr WindowHandle,
+    string WindowTitle,
+    string ElementName,
+    int X,
+    int Y,
+    int Width,
+    int Height
+);
+
+/// <summary>
+/// Video stream session configuration
+/// </summary>
+public record VideoStreamConfig(
+    string TargetName,
+    int Fps,
+    int Quality,
+    int MaxWidth,
+    bool EnableChangeDetection,
+    double ChangeThreshold,
+    int KeyFrameIntervalSeconds
+);

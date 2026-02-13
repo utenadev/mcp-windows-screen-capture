@@ -8,8 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **`watch_video` Tool**: New high-efficiency video capture pipeline for LLM consumption.
+    - **Video Target Finder**: UI Automation-based dynamic video element detection with window title tracking (YouTube, Netflix, etc.).
+    - **Visual Change Detection**: Grid-based (16x16) pixel sampling to skip duplicate frames and reduce token usage.
+    - **Optimized GDI+ Processing**: Bilinear interpolation, 640px max width, JPEG quality 60-70 for low-latency streaming.
+    - **Structured Payload**: JSON format with timestamp, window metadata, change detection results, and Base64 image data.
+    - **MCP Tools**: `watch_video`, `stop_watch_video`, and `get_latest_video_frame` for video stream management.
+    - **Memory Management**: Proper disposal of Bitmap/Graphics objects using `using` blocks.
 - **`close_window` Tool**: New tool to terminate a process by its window handle (HWND).
 - **Process Identification**: Added `GetWindowThreadProcessId` P/Invoke to `InputService` to link windows to their owning processes.
+- **Unit Tests**: Added comprehensive tests for `VisualChangeDetector` and `VideoTargetFinder` components.
+- **E2E Tests**: Added `VideoCaptureE2ETests` for video pipeline integration testing.
 - **Improved E2E Test Infrastructure**: 
     - Refactored `McpE2ETests.cs` to use `OneTimeSetUp` and `OneTimeTearDown` for better resource management.
     - Implemented a more robust Notepad window identification logic with retries and title-based fallback.

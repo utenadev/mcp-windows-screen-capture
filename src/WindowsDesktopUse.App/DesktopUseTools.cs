@@ -16,10 +16,12 @@ public static class DesktopUseTools
     private static ScreenCaptureService? _capture;
     private static AudioCaptureService? _audioCapture;
     private static WhisperTranscriptionService? _whisperService;
+    private static VideoCaptureService? _videoCapture;
 
     public static void SetCaptureService(ScreenCaptureService capture) => _capture = capture;
     public static void SetAudioCaptureService(AudioCaptureService audioCapture) => _audioCapture = audioCapture;
     public static void SetWhisperService(WhisperTranscriptionService whisperService) => _whisperService = whisperService;
+    public static void SetVideoCaptureService(VideoCaptureService videoCapture) => _videoCapture = videoCapture;
 
     // Enum for capture target types
     public enum CaptureTargetType
@@ -733,5 +735,118 @@ public static class DesktopUseTools
             throw new ArgumentException($"Invalid hwnd: '{hwndStr}'. Must be integer.");
 
         InputService.TerminateWindowProcess(new IntPtr(hwnd));
+    }
+
+    // ============ VIDEO CAPTURE TOOLS ============
+
+    /// <summary>
+    /// Starts a high-efficiency video capture stream for LLM consumption.
+    /// Optimized for low-latency, low-token visual information delivery.
+    /// </summary>
+    [McpServerTool, Description("Start a high-efficiency video capture stream for LLM consumption. Optimized for video content like YouTube, Netflix, etc.")]
+    public static async Task<string> WatchVideo(
+        McpServer server,
+        [Description("Target name: 'YouTube', 'Netflix', 'ActiveWindow', or window title substring")] string targetName = "ActiveWindow",
+        [Description("Frame rate (fps), default 10")] int fps = 10,
+        [Description("JPEG quality (1-100), default 65")] int quality = 65,
+        [Description("Enable change detection to skip duplicate frames")] bool enableChangeDetection = true,
+        [Description("Change threshold (0.05-0.20), default 0.08 (8%)")] double changeThreshold = 0.08,
+        [Description("Key frame interval in seconds, default 10")] int keyFrameInterval = 10)
+    {
+        if (_videoCapture == null)
+            throw new InvalidOperationException("VideoCaptureService not initialized");
+
+        if (fps < 1 || fps > 30)
+            throw new ArgumentOutOfRangeException(nameof(fps), "FPS must be between 1 and 30");
+
+        if (quality < 1 || quality > 100)
+            throw new ArgumentOutOfRangeException(nameof(quality), "Quality must be between 1 and 100");
+
+        Console.Error.WriteLine($"[WatchVideo] Starting video stream for: {targetName}, FPS: {fps}, Quality: {quality}");
+
+        try
+        {
+            var sessionId = await _videoCapture.StartVideoStreamAsync(
+                targetName: targetName,
+                fps: fps,
+                quality: quality,
+                maxWidth: 640,
+                enableChangeDetection: enableChangeDetection,
+                changeThreshold: changeThreshold,
+                keyFrameInterval: keyFrameInterval,
+                onFrameCaptured: async (payload) =>
+                {
+                    var notificationData = new Dictionary<string, object?>
+                    {
+                        ["level"] = "info",
+                        ["data"] = new Dictionary<string, object>
+                        {
+                            ["sessionId"] = "video_" + Guid.NewGuid().ToString()[..8],
+                            ["timestamp"] = payload.Timestamp,
+                            ["systemTime"] = payload.SystemTime,
+                            ["windowTitle"] = payload.WindowInfo.Title,
+                            ["hasChange"] = payload.VisualMetadata.HasChange,
+                            ["eventTag"] = payload.VisualMetadata.EventTag,
+                            ["image"] = payload.ImageData,
+                            ["type"] = "video_frame"
+                        }
+                    };
+                    await server.SendNotificationAsync("notifications/message", notificationData).ConfigureAwait(false);
+                }
+            );
+
+            Console.Error.WriteLine($"[WatchVideo] Video stream started: {sessionId}");
+            return sessionId;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[WatchVideo] Error starting video stream: {ex.Message}");
+            throw;
+        }
+    }
+
+    [McpServerTool, Description("Stop a running video capture stream")]
+    public static string StopWatchVideo(
+        [Description("The session ID returned by watch_video")] string sessionId)
+    {
+        if (_videoCapture == null)
+            throw new InvalidOperationException("VideoCaptureService not initialized");
+
+        _videoCapture.StopVideoStream(sessionId);
+        return $"Stopped video stream {sessionId}";
+    }
+
+    [McpServerTool, Description("Get the latest video frame from a stream session")]
+    public static object GetLatestVideoFrame(
+        [Description("The session ID")] string sessionId)
+    {
+        if (_videoCapture == null)
+            throw new InvalidOperationException("VideoCaptureService not initialized");
+
+        var payload = _videoCapture.GetLatestPayload(sessionId);
+        
+        if (payload == null)
+        {
+            return new Dictionary<string, object?>
+            {
+                ["sessionId"] = sessionId,
+                ["hasFrame"] = false,
+                ["message"] = "No frame captured yet"
+            };
+        }
+
+        return new Dictionary<string, object?>
+        {
+            ["sessionId"] = sessionId,
+            ["hasFrame"] = true,
+            ["timestamp"] = payload.Timestamp,
+            ["systemTime"] = payload.SystemTime,
+            ["windowTitle"] = payload.WindowInfo.Title,
+            ["isActive"] = payload.WindowInfo.IsActive,
+            ["hasChange"] = payload.VisualMetadata.HasChange,
+            ["eventTag"] = payload.VisualMetadata.EventTag,
+            ["image"] = payload.ImageData,
+            ["ocrText"] = payload.OcrText
+        };
     }
 }
