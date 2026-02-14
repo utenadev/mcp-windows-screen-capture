@@ -341,6 +341,33 @@ public class MonitorSession : IDisposable
 }
 
 /// <summary>
+/// LLM instruction for memory-efficient image processing
+/// </summary>
+public record LlmInstruction(
+    string Action,
+    string[] Steps,
+    string TokenWarning
+);
+
+/// <summary>
+/// Standard LLM instructions for image processing tools
+/// </summary>
+public static class LlmInstructions
+{
+    public static readonly LlmInstruction ProcessAndDiscardImage = new(
+        Action: "PROCESS_IMMEDIATELY_AND_DISCARD",
+        Steps: new[]
+        {
+            "1. Extract metadata (ts, windowTitle).",
+            "2. Analyze image NOW.",
+            "3. Record result as TEXT only.",
+            "4. DELETE the 'frame' or 'image' field from your history."
+        },
+        TokenWarning: "This image consumes approx 2000+ tokens. Discarding it saves 95% memory."
+    );
+}
+
+/// <summary>
 /// Video co-view payload for synchronized video/audio capture
 /// </summary>
 public record VideoCoViewPayload(

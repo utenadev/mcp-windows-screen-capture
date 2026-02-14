@@ -746,7 +746,7 @@ public static class DesktopUseTools
     /// Starts a high-efficiency video capture stream for LLM consumption.
     /// Optimized for low-latency, low-token visual information delivery.
     /// </summary>
-    [McpServerTool, Description("Start a high-efficiency video capture stream for LLM consumption. Optimized for video content like YouTube, Netflix, etc.")]
+    [McpServerTool, Description("Start a high-efficiency video capture stream for LLM consumption. Optimized for video content like YouTube, Netflix, etc. CRITICAL: This tool returns large base64 data. To avoid token overflow, you MUST extract metadata, analyze the image briefly, and IMMEDIATELY discard the base64 data. Do NOT store it in your context.")]
     public static async Task<string> WatchVideo(
         McpServer server,
         [Description("Target name: 'YouTube', 'Netflix', 'ActiveWindow', or window title substring")] string targetName = "ActiveWindow",
@@ -819,7 +819,7 @@ public static class DesktopUseTools
         return $"Stopped video stream {sessionId}";
     }
 
-    [McpServerTool, Description("Get the latest video frame from a stream session")]
+    [McpServerTool, Description("Get the latest video frame from a stream session. CRITICAL: This tool returns large base64 data. To avoid token overflow, you MUST extract metadata, analyze the image briefly, and IMMEDIATELY discard the base64 data. Do NOT store it in your context.")]
     public static object GetLatestVideoFrame(
         [Description("The session ID")] string sessionId)
     {
@@ -849,7 +849,13 @@ public static class DesktopUseTools
             ["hasChange"] = payload.VisualMetadata.HasChange,
             ["eventTag"] = payload.VisualMetadata.EventTag,
             ["image"] = payload.ImageData,
-            ["ocrText"] = payload.OcrText
+            ["ocrText"] = payload.OcrText,
+            ["_llm_instruction"] = new Dictionary<string, object>
+            {
+                ["action"] = LlmInstructions.ProcessAndDiscardImage.Action,
+                ["steps"] = LlmInstructions.ProcessAndDiscardImage.Steps,
+                ["token_warning"] = LlmInstructions.ProcessAndDiscardImage.TokenWarning
+            }
         };
     }
 
@@ -1223,7 +1229,7 @@ public static class DesktopUseTools
     /// <summary>
     /// Start synchronized video/audio capture for co-viewing experience
     /// </summary>
-    [McpServerTool, Description("Start synchronized video and audio capture for co-viewing. Captures frames and transcribes audio with synchronized timestamps.")]
+    [McpServerTool, Description("Start synchronized video and audio capture for co-viewing. Captures frames and transcribes audio with synchronized timestamps. CRITICAL: This tool returns large base64 data. To avoid token overflow, you MUST extract metadata, analyze the image briefly, and IMMEDIATELY discard the base64 data. Do NOT store it in your context.")]
     public static async Task<string> WatchVideoV2(
         McpServer server,
         [Description("X coordinate of capture region")] int x,
@@ -1369,7 +1375,13 @@ public static class DesktopUseTools
                                 ["ts"] = Math.Round(ts, 1),
                                 ["frame"] = frameBase64,
                                 ["transcript"] = transcriptionResult ?? "",
-                                ["windowTitle"] = $"Region ({x}, {y}) {w}x{h}"
+                                ["windowTitle"] = $"Region ({x}, {y}) {w}x{h}",
+                                ["_llm_instruction"] = new Dictionary<string, object>
+                                {
+                                    ["action"] = LlmInstructions.ProcessAndDiscardImage.Action,
+                                    ["steps"] = LlmInstructions.ProcessAndDiscardImage.Steps,
+                                    ["token_warning"] = LlmInstructions.ProcessAndDiscardImage.TokenWarning
+                                }
                             }
                         };
 

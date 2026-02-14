@@ -50,6 +50,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - **Actual Capture Timestamp**: `ts` is calculated at the moment of capture completion, not loop start.
     - **Interval Maintenance**: Strict interval preservation even when processing takes longer than expected.
     - **Drift Prevention**: Eliminates cumulative timing errors between video frames and audio transcription.
+- **Token Efficiency Protocol**: Added memory-efficient image processing instructions for LLMs.
+    - **LLM Instruction Schema**: `_llm_instruction` field in responses with PROCESS_IMMEDIATELY_AND_DISCARD action.
+    - **Tool Description Updates**: CRITICAL warnings in tool descriptions to prevent token overflow.
+    - **Explicit Discard Steps**: 4-step protocol (extract metadata, analyze, record as text, delete base64).
+    - **Token Warning**: Approx 2000+ tokens per image, 95% memory savings by discarding.
 - **Unit Tests**: Added comprehensive tests for `VisualChangeDetector` and `VideoTargetFinder` components.
 - **E2E Tests**: Added `VideoCaptureE2ETests` for video pipeline integration testing.
 - **Improved E2E Test Infrastructure**: 
