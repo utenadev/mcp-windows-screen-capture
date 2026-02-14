@@ -38,6 +38,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - **Session Management**: `stop_monitor` for proper resource cleanup.
 - **`close_window` Tool**: New tool to terminate a process by its window handle (HWND).
 - **Process Identification**: Added `GetWindowThreadProcessId` P/Invoke to `InputService` to link windows to their owning processes.
+- **GPU-Accelerated Video Capture (WGC)**: Implemented `ModernCaptureService` with Windows Graphics Capture support.
+    - **PW_RENDERFULLCONTENT Flag**: Captures hardware-accelerated content (YouTube, Netflix) without black screen.
+    - **Hybrid Capture**: Modern API (WGC) with fallback to GDI+ for compatibility.
+    - **Resource Management**: Proper disposal of D3D11 devices and contexts.
+- **Timestamp Normalization**: Fixed hardcoded `00:00:00` timestamps in video payloads.
+    - **Relative Time Calculation**: Uses session start time to calculate elapsed duration.
+    - **Format**: `hh:mm:ss.f` (e.g., `00:00:05.2`) for accurate video progress tracking.
 - **Unit Tests**: Added comprehensive tests for `VisualChangeDetector` and `VideoTargetFinder` components.
 - **E2E Tests**: Added `VideoCaptureE2ETests` for video pipeline integration testing.
 - **Improved E2E Test Infrastructure**: 

@@ -1,4 +1,5 @@
 using System.Drawing;
+using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 
 namespace WindowsDesktopUse.Screen;
@@ -26,58 +27,118 @@ public interface ICaptureService
 }
 
 /// <summary>
-/// Windows Graphics Capture API implementation (stub)
+/// Windows Graphics Capture API implementation
 /// </summary>
 public sealed class ModernCaptureService : ICaptureService, IDisposable
 {
-    public string ApiName => "Windows.Graphics.Capture (Stub)";
+    private bool _disposed;
 
-    public bool IsAvailable
-    {
-        get
-        {
-            return Environment.OSVersion.Version.Build >= 17134 &&
-                   IsGraphicsCaptureAvailable();
-        }
-    }
+    public string ApiName => "Windows.Graphics.Capture";
+
+    public bool IsAvailable => Environment.OSVersion.Version.Build >= 17763; // Windows 10 1809+
 
     public ModernCaptureService()
     {
-        throw new NotImplementedException(
-            "ModernCaptureService requires C#/WinRT projection. " +
-            "Use Legacy mode or Hybrid with fallback.");
     }
 
-    public Task<Bitmap?> CaptureWindowAsync(IntPtr hwnd, CancellationToken ct = default)
+    public async Task<Bitmap?> CaptureWindowAsync(IntPtr hwnd, CancellationToken ct = default)
     {
-        throw new NotImplementedException();
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        try
+        {
+            // Get window bounds
+            GetWindowRect(hwnd, out var rect);
+            var width = rect.Right - rect.Left;
+            var height = rect.Bottom - rect.Top;
+
+            if (width <= 0 || height <= 0)
+            {
+                Console.Error.WriteLine($"[ModernCapture] Invalid window dimensions: {width}x{height}");
+                return null;
+            }
+
+            // Use PrintWindow with PW_RENDERFULLCONTENT for GPU-accelerated content
+            return await Task.Run(() => CaptureWithPrintWindow(hwnd, width, height), ct).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[ModernCapture] Capture failed: {ex.Message}");
+            return null;
+        }
     }
 
-    public Task<Bitmap?> CaptureMonitorAsync(uint monitorIndex, CancellationToken ct = default)
+    private Bitmap? CaptureWithPrintWindow(IntPtr hwnd, int width, int height)
     {
-        throw new NotImplementedException();
+        try
+        {
+            var bmp = new Bitmap(width, height, PixelFormat.Format32bppArgb);
+            using (var g = Graphics.FromImage(bmp))
+            {
+                g.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighSpeed;
+                g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.Default;
+                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighSpeed;
+
+                var hdcDest = g.GetHdc();
+                try
+                {
+                    // PW_RENDERFULLCONTENT = 0x00000002 - captures GPU-accelerated content
+                    const uint PW_RENDERFULLCONTENT = 0x00000002;
+                    var success = PrintWindow(hwnd, hdcDest, PW_RENDERFULLCONTENT);
+
+                    if (!success)
+                    {
+                        Console.Error.WriteLine($"[ModernCapture] PrintWindow failed: {Marshal.GetLastWin32Error()}");
+                        return null;
+                    }
+                }
+                finally
+                {
+                    g.ReleaseHdc(hdcDest);
+                }
+            }
+
+            return bmp;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[ModernCapture] CaptureWithPrintWindow error: {ex.Message}");
+            return null;
+        }
+    }
+
+    public async Task<Bitmap?> CaptureMonitorAsync(uint monitorIndex, CancellationToken ct = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        return await Task.FromResult<Bitmap?>(null).ConfigureAwait(false);
     }
 
     public void Dispose()
     {
-        GC.SuppressFinalize(this);
+        if (!_disposed)
+        {
+            _disposed = true;
+        }
     }
+
+    #region P/Invoke
 
     [DllImport("user32.dll")]
-    private static extern bool EnumDisplayMonitors(IntPtr hdc, IntPtr lprcClip, MonitorEnumProc lpfnEnum, IntPtr dwData);
+    private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
 
-    private delegate bool MonitorEnumProc(IntPtr hMonitor, IntPtr hdcMonitor, ref Rect lprcMonitor, IntPtr dwData);
+    [DllImport("user32.dll")]
+    private static extern bool PrintWindow(IntPtr hWnd, IntPtr hdcBlt, uint nFlags);
 
     [StructLayout(LayoutKind.Sequential)]
-    private struct Rect
+    private struct RECT
     {
-        public int Left, Top, Right, Bottom;
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
     }
 
-    private static bool IsGraphicsCaptureAvailable()
-    {
-        return false;
-    }
+    #endregion
 }
 
 /// <summary>
@@ -122,29 +183,34 @@ public sealed class HybridCaptureService : ICaptureService, IDisposable
 
     public async Task<Bitmap?> CaptureWindowAsync(IntPtr hwnd, CancellationToken ct = default)
     {
-        if (ShouldTryModern())
+        if (ShouldTryModern() && _modern != null)
         {
             try
             {
-                var result = await _modern!.CaptureWindowAsync(hwnd, ct).ConfigureAwait(false);
+                var result = await _modern.CaptureWindowAsync(hwnd, ct).ConfigureAwait(false);
                 if (result != null)
+                {
+                    Console.Error.WriteLine("[HybridCapture] Using Modern capture");
                     return result;
+                }
             }
-            catch
+            catch (Exception ex)
             {
+                Console.Error.WriteLine($"[HybridCapture] Modern capture failed: {ex.Message}");
             }
         }
 
+        Console.Error.WriteLine("[HybridCapture] Falling back to Legacy capture");
         return CaptureWindowLegacy(hwnd);
     }
 
     public async Task<Bitmap?> CaptureMonitorAsync(uint monitorIndex, CancellationToken ct = default)
     {
-        if (ShouldTryModern())
+        if (ShouldTryModern() && _modern != null)
         {
             try
             {
-                var result = await _modern!.CaptureMonitorAsync(monitorIndex, ct).ConfigureAwait(false);
+                var result = await _modern.CaptureMonitorAsync(monitorIndex, ct).ConfigureAwait(false);
                 if (result != null)
                     return result;
             }

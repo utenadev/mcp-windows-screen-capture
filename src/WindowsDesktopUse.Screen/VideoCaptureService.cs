@@ -12,6 +12,7 @@ namespace WindowsDesktopUse.Screen;
 public sealed class VideoCaptureService : IDisposable
 {
     private readonly VideoTargetFinder _targetFinder;
+    private readonly HybridCaptureService _captureService;
     private readonly Dictionary<string, VideoSession> _sessions = new();
     private readonly object _lock = new();
     private bool _disposed;
@@ -19,6 +20,7 @@ public sealed class VideoCaptureService : IDisposable
     public VideoCaptureService()
     {
         _targetFinder = new VideoTargetFinder();
+        _captureService = new HybridCaptureService(new ScreenCaptureService(0), CaptureApiPreference.Auto);
     }
 
     /// <summary>
@@ -152,8 +154,7 @@ public sealed class VideoCaptureService : IDisposable
                     session.TargetInfo = target;
 
                     // Capture frame
-                    using var frame = await Task.Run(() => 
-                        CaptureVideoFrame(target, session.MaxWidth));
+                    using var frame = await CaptureVideoFrameAsync(target, session.MaxWidth).ConfigureAwait(false);
 
                     if (frame == null) continue;
 
@@ -223,10 +224,46 @@ public sealed class VideoCaptureService : IDisposable
         }
     }
 
-    private Bitmap? CaptureVideoFrame(VideoTargetInfo target, int maxWidth)
+    private async Task<Bitmap?> CaptureVideoFrameAsync(VideoTargetInfo target, int maxWidth)
     {
         try
         {
+            // Try modern capture first (supports GPU-accelerated content)
+            if (_captureService.IsAvailable)
+            {
+                try
+                {
+                    var modernBitmap = await _captureService.CaptureWindowAsync(target.WindowHandle).ConfigureAwait(false);
+                    if (modernBitmap != null)
+                    {
+                        // Resize if needed
+                        if (modernBitmap.Width > maxWidth)
+                        {
+                            var newHeight = (int)(modernBitmap.Height * ((double)maxWidth / modernBitmap.Width));
+                            using (modernBitmap)
+                            {
+                                var resized = new Bitmap(maxWidth, newHeight);
+                                using (var g = Graphics.FromImage(resized))
+                                {
+                                    g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.Bilinear;
+                                    g.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighSpeed;
+                                    g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighSpeed;
+                                    g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighSpeed;
+                                    g.DrawImage(modernBitmap, 0, 0, maxWidth, newHeight);
+                                }
+                                return resized;
+                            }
+                        }
+                        return modernBitmap;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"[VideoCapture] Modern capture failed: {ex.Message}");
+                }
+            }
+
+            // Fallback to legacy GDI+ capture
             var width = target.Width;
             var height = target.Height;
 
@@ -289,9 +326,10 @@ public sealed class VideoCaptureService : IDisposable
     {
         var now = DateTime.UtcNow;
         var target = session.TargetInfo;
+        var relativeTime = session.GetRelativeTime();
 
         return new VideoPayload(
-            Timestamp: "00:00:00", // TODO: Extract from video player if possible
+            Timestamp: relativeTime.ToString(@"hh\:mm\:ss\.f"),
             SystemTime: now.ToString("O"),
             WindowInfo: new VideoWindowInfo(
                 Title: target.WindowTitle,
@@ -348,6 +386,9 @@ public sealed class VideoCaptureService : IDisposable
         public CancellationToken CancellationToken { get; set; }
         public CancellationTokenSource? CancellationTokenSource { get; set; }
         public VideoPayload? LatestPayload { get; set; }
+        public DateTime StartTime { get; set; } = DateTime.UtcNow;
+
+        public TimeSpan GetRelativeTime() => DateTime.UtcNow - StartTime;
 
         public void Dispose()
         {
