@@ -640,6 +640,7 @@ rootCmd.SetHandler(async (desktop, httpPort, testWhisper) =>
     services.AddSingleton<AudioCaptureService>();
     services.AddSingleton<WhisperTranscriptionService>();
     services.AddSingleton<VideoCaptureService>();
+    services.AddSingleton<AccessibilityService>();
 
     serviceProvider = services.BuildServiceProvider();
 
@@ -648,11 +649,13 @@ rootCmd.SetHandler(async (desktop, httpPort, testWhisper) =>
     var audioCaptureService = serviceProvider.GetRequiredService<AudioCaptureService>();
     var whisperService = serviceProvider.GetRequiredService<WhisperTranscriptionService>();
     var videoCaptureService = serviceProvider.GetRequiredService<VideoCaptureService>();
+    var accessibilityService = serviceProvider.GetRequiredService<AccessibilityService>();
 
     DesktopUseTools.SetCaptureService(captureService);
     DesktopUseTools.SetAudioCaptureService(audioCaptureService);
     DesktopUseTools.SetWhisperService(whisperService);
     DesktopUseTools.SetVideoCaptureService(videoCaptureService);
+    DesktopUseTools.SetAccessibilityService(accessibilityService);
 
     if (testWhisper)
     {

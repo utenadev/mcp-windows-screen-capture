@@ -305,3 +305,37 @@ public record UnifiedEventMetadata(
     double? SegmentStartTime = null,
     double? SegmentEndTime = null
 );
+
+/// <summary>
+/// Monitor sensitivity levels for change detection
+/// </summary>
+public enum MonitorSensitivity
+{
+    High = 1,   // Threshold 0.01 (1%)
+    Medium = 5, // Threshold 0.05 (5%)
+    Low = 15    // Threshold 0.15 (15%)
+}
+
+/// <summary>
+/// Monitor session information
+/// </summary>
+public class MonitorSession : IDisposable
+{
+    public string Id { get; set; } = "";
+    public long Hwnd { get; set; }
+    public MonitorSensitivity Sensitivity { get; set; } = MonitorSensitivity.Medium;
+    public int IntervalMs { get; set; } = 500;
+    public CancellationTokenSource Cts { get; set; } = new();
+    public DateTime StartTime { get; set; } = DateTime.UtcNow;
+    private bool _disposed;
+
+    public void Dispose()
+    {
+        if (!_disposed)
+        {
+            Cts.Cancel();
+            Cts.Dispose();
+            _disposed = true;
+        }
+    }
+}

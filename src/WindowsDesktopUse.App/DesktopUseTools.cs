@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Drawing;
 using System.Globalization;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
@@ -17,11 +18,13 @@ public static class DesktopUseTools
     private static AudioCaptureService? _audioCapture;
     private static WhisperTranscriptionService? _whisperService;
     private static VideoCaptureService? _videoCapture;
+    private static AccessibilityService? _accessibilityService;
 
     public static void SetCaptureService(ScreenCaptureService capture) => _capture = capture;
     public static void SetAudioCaptureService(AudioCaptureService audioCapture) => _audioCapture = audioCapture;
     public static void SetWhisperService(WhisperTranscriptionService whisperService) => _whisperService = whisperService;
     public static void SetVideoCaptureService(VideoCaptureService videoCapture) => _videoCapture = videoCapture;
+    public static void SetAccessibilityService(AccessibilityService accessibilityService) => _accessibilityService = accessibilityService;
 
     // Enum for capture target types
     public enum CaptureTargetType
@@ -1021,6 +1024,192 @@ public static class DesktopUseTools
                 _unifiedSessionStartTimes.Remove(sessionId);
                 Console.Error.WriteLine($"[WatchVideoV1] Unified stream stopped: {sessionId}");
                 return $"Stopped unified stream {sessionId}";
+            }
+        }
+
+        return $"Session not found: {sessionId}";
+    }
+
+    // ============ ACCESSIBILITY & MONITOR TOOLS ============
+
+    private static readonly Dictionary<string, MonitorSession> _monitorSessions = new();
+    private static readonly Dictionary<string, VisualChangeDetector> _monitorDetectors = new();
+
+    /// <summary>
+    /// Read text from a window using UI Automation and return as Markdown
+    /// </summary>
+    [McpServerTool, Description("Extract structured text from a window using UI Automation. Returns Markdown-formatted text.")]
+    public static string ReadWindowText(
+        [Description("Window handle (HWND)")] long hwnd,
+        [Description("Include buttons in output")] bool includeButtons = false)
+    {
+        if (_accessibilityService == null)
+            throw new InvalidOperationException("AccessibilityService not initialized");
+
+        Console.Error.WriteLine($"[ReadWindowText] Extracting text from window: {hwnd}");
+
+        var text = _accessibilityService.ExtractWindowText(new IntPtr(hwnd), includeButtons);
+        
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return "No text content found in the window.";
+        }
+
+        return text;
+    }
+
+    /// <summary>
+    /// Monitor a window for visual changes and send notifications
+    /// </summary>
+    [McpServerTool, Description("Monitor a window for visual changes. Sends MCP notifications when changes are detected.")]
+    public static async Task<string> Monitor(
+        McpServer server,
+        [Description("Window handle (HWND)")] long hwnd,
+        [Description("Sensitivity level: High (1%), Medium (5%), Low (15%)")] string sensitivity = "Medium",
+        [Description("Check interval in milliseconds")] int intervalMs = 500)
+    {
+        if (_capture == null)
+            throw new InvalidOperationException("ScreenCaptureService not initialized");
+
+        var sensitivityLevel = Enum.TryParse<MonitorSensitivity>(sensitivity, true, out var s) 
+            ? s 
+            : MonitorSensitivity.Medium;
+
+        var threshold = (double)sensitivityLevel / 100.0;
+
+        Console.Error.WriteLine($"[Monitor] Starting monitor for window: {hwnd}, sensitivity: {sensitivityLevel}, threshold: {threshold}");
+
+        var sessionId = Guid.NewGuid().ToString();
+        var session = new MonitorSession
+        {
+            Id = sessionId,
+            Hwnd = hwnd,
+            Sensitivity = sensitivityLevel,
+            IntervalMs = intervalMs
+        };
+
+        var detector = new VisualChangeDetector
+        {
+            GridSize = 16,
+            ChangeThreshold = threshold,
+            PixelThreshold = 30,
+            KeyFrameInterval = 30
+        };
+
+        lock (_monitorSessions)
+        {
+            _monitorSessions[sessionId] = session;
+            _monitorDetectors[sessionId] = detector;
+        }
+
+        // Start monitoring loop
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                while (!session.Cts.IsCancellationRequested)
+                {
+                    var startTime = DateTime.UtcNow;
+
+                    try
+                    {
+                        // Capture window
+                        var frameBase64 = ScreenCaptureService.CaptureWindow(hwnd, 640, 60);
+                        if (string.IsNullOrEmpty(frameBase64))
+                        {
+                            Console.Error.WriteLine($"[Monitor] Failed to capture window: {hwnd}");
+                            await Task.Delay(intervalMs, session.Cts.Token).ConfigureAwait(false);
+                            continue;
+                        }
+
+                        // Decode base64 to Bitmap for analysis
+                        var imageBytes = Convert.FromBase64String(frameBase64);
+                        using var frame = new Bitmap(new MemoryStream(imageBytes));
+
+                        // Analyze for changes
+                        var result = detector.AnalyzeFrame(frame);
+
+                        if (result.ShouldSend)
+                        {
+                            var notificationData = new Dictionary<string, object?>
+                            {
+                                ["level"] = "info",
+                                ["data"] = new Dictionary<string, object>
+                                {
+                                    ["type"] = "window_monitor",
+                                    ["sessionId"] = sessionId,
+                                    ["hwnd"] = hwnd,
+                                    ["hasChange"] = result.HasChange,
+                                    ["eventTag"] = result.EventTag,
+                                    ["changeRatio"] = result.ChangeRatio,
+                                    ["changedGridIndices"] = result.ChangedGridIndices.Count > 0 
+                                        ? result.ChangedGridIndices.ToArray() 
+                                        : Array.Empty<int>()
+                                }
+                            };
+
+                            await server.SendNotificationAsync("notifications/message", notificationData).ConfigureAwait(false);
+                            Console.Error.WriteLine($"[Monitor] Change detected: {result.EventTag}, ratio: {result.ChangeRatio:F3}");
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        break;
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.Error.WriteLine($"[Monitor] Error: {ex.Message}");
+                    }
+
+                    // Maintain interval
+                    var elapsed = (int)(DateTime.UtcNow - startTime).TotalMilliseconds;
+                    var delay = Math.Max(0, intervalMs - elapsed);
+                    if (delay > 0)
+                    {
+                        try
+                        {
+                            await Task.Delay(delay, session.Cts.Token).ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            break;
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                Console.Error.WriteLine($"[Monitor] Session ended: {sessionId}");
+            }
+        }, session.Cts.Token);
+
+        Console.Error.WriteLine($"[Monitor] Started: {sessionId}");
+        return sessionId;
+    }
+
+    /// <summary>
+    /// Stop monitoring a window
+    /// </summary>
+    [McpServerTool, Description("Stop monitoring a window")]
+    public static string StopMonitor(
+        [Description("The session ID returned by monitor")] string sessionId)
+    {
+        lock (_monitorSessions)
+        {
+            if (_monitorSessions.TryGetValue(sessionId, out var session))
+            {
+                session.Cts.Cancel();
+                session.Dispose();
+                _monitorSessions.Remove(sessionId);
+
+                if (_monitorDetectors.TryGetValue(sessionId, out var detector))
+                {
+                    detector.Dispose();
+                    _monitorDetectors.Remove(sessionId);
+                }
+
+                Console.Error.WriteLine($"[Monitor] Stopped: {sessionId}");
+                return $"Stopped monitor {sessionId}";
             }
         }
 

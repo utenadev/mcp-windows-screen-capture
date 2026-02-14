@@ -38,8 +38,7 @@ public sealed class VisualChangeDetector : IDisposable
     /// </summary>
     public ChangeAnalysisResult AnalyzeFrame(Bitmap frame)
     {
-        if (_disposed)
-            throw new ObjectDisposedException(nameof(VisualChangeDetector));
+        ObjectDisposedException.ThrowIf(_disposed, this);
 
         lock (_lock)
         {
@@ -51,7 +50,8 @@ public sealed class VisualChangeDetector : IDisposable
             {
                 UpdatePreviousFrame(frame);
                 _lastKeyFrameTime = now;
-                return new ChangeAnalysisResult(true, true, 1.0, "Key Frame");
+                var allIndices = Enumerable.Range(0, GridSize * GridSize).ToList();
+                return new ChangeAnalysisResult(true, true, 1.0, "Key Frame", allIndices);
             }
 
             // First frame
@@ -59,36 +59,38 @@ public sealed class VisualChangeDetector : IDisposable
             {
                 UpdatePreviousFrame(frame);
                 _lastKeyFrameTime = now;
-                return new ChangeAnalysisResult(true, true, 1.0, "Initial Frame");
+                var allIndices = Enumerable.Range(0, GridSize * GridSize).ToList();
+                return new ChangeAnalysisResult(true, true, 1.0, "Initial Frame", allIndices);
             }
 
             // Check if dimensions match
             if (_previousFrame.Width != frame.Width || _previousFrame.Height != frame.Height)
             {
                 UpdatePreviousFrame(frame);
-                return new ChangeAnalysisResult(true, true, 1.0, "Dimension Change");
+                var allIndices = Enumerable.Range(0, GridSize * GridSize).ToList();
+                return new ChangeAnalysisResult(true, true, 1.0, "Dimension Change", allIndices);
             }
 
             // Perform grid-based comparison
-            var changeRatio = CalculateChangeRatio(frame);
+            var (changeRatio, changedIndices) = CalculateChangeRatio(frame);
             var hasSignificantChange = changeRatio >= ChangeThreshold;
 
             if (hasSignificantChange)
             {
                 UpdatePreviousFrame(frame);
-                return new ChangeAnalysisResult(true, true, changeRatio, "Scene Change");
+                return new ChangeAnalysisResult(true, true, changeRatio, "Scene Change", changedIndices);
             }
 
-            return new ChangeAnalysisResult(false, false, changeRatio, "No Change");
+            return new ChangeAnalysisResult(false, false, changeRatio, "No Change", changedIndices);
         }
     }
 
     /// <summary>
     /// Calculate change ratio using grid-based sampling
     /// </summary>
-    private double CalculateChangeRatio(Bitmap currentFrame)
+    private (double Ratio, List<int> ChangedIndices) CalculateChangeRatio(Bitmap currentFrame)
     {
-        if (_previousFrame == null) return 1.0;
+        if (_previousFrame == null) return (1.0, Enumerable.Range(0, GridSize * GridSize).ToList());
 
         var width = currentFrame.Width;
         var height = currentFrame.Height;
@@ -99,7 +101,7 @@ public sealed class VisualChangeDetector : IDisposable
         var cellWidth = width / cols;
         var cellHeight = height / rows;
         
-        var changedCells = 0;
+        var changedIndices = new List<int>();
         var totalCells = cols * rows;
 
         // Use LockBits for fast pixel access with safe copy
@@ -144,7 +146,7 @@ public sealed class VisualChangeDetector : IDisposable
 
                     if (bDiff > PixelThreshold || gDiff > PixelThreshold || rDiff > PixelThreshold)
                     {
-                        changedCells++;
+                        changedIndices.Add(row * cols + col);
                     }
                 }
             }
@@ -155,7 +157,8 @@ public sealed class VisualChangeDetector : IDisposable
             _previousFrame.UnlockBits(previousData);
         }
 
-        return (double)changedCells / totalCells;
+        var ratio = (double)changedIndices.Count / totalCells;
+        return (ratio, changedIndices);
     }
 
     private void UpdatePreviousFrame(Bitmap frame)
@@ -198,5 +201,6 @@ public record ChangeAnalysisResult(
     bool HasChange,
     bool ShouldSend,
     double ChangeRatio,
-    string EventTag
+    string EventTag,
+    IReadOnlyList<int> ChangedGridIndices
 );

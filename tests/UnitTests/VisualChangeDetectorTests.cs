@@ -38,6 +38,7 @@ public class VisualChangeDetectorTests
         Assert.That(result.HasChange, Is.True);
         // First frame is treated as "Initial Frame" or "Key Frame" depending on implementation
         Assert.That(result.EventTag, Is.EqualTo("Initial Frame").Or.EqualTo("Key Frame"));
+        Assert.That(result.ChangedGridIndices, Is.Not.Empty);
     }
 
     [Test]
@@ -52,6 +53,7 @@ public class VisualChangeDetectorTests
         Assert.That(result.ShouldSend, Is.False);
         Assert.That(result.HasChange, Is.False);
         Assert.That(result.ChangeRatio, Is.LessThan(0.08));
+        Assert.That(result.ChangedGridIndices, Is.Empty);
     }
 
     [Test]
@@ -66,6 +68,7 @@ public class VisualChangeDetectorTests
         Assert.That(result.ShouldSend, Is.True);
         Assert.That(result.HasChange, Is.True);
         Assert.That(result.ChangeRatio, Is.GreaterThan(0.08));
+        Assert.That(result.ChangedGridIndices, Is.Not.Empty);
     }
 
     [Test]

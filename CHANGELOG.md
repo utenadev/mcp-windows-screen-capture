@@ -20,6 +20,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - **StreamSession Enhancement**: Added `StartTime` and `RelativeTime` property for time-based coordination.
     - **Whisper OS Language Detection**: Auto-detects OS language for transcription using `CultureInfo.CurrentCulture`.
     - **Combined Capture**: Integrates video capture with audio transcription in a single session.
+- **`read_window_text` Tool**: UI Automation-based structured text extraction from windows.
+    - **Markdown Output**: Converts UI tree to Markdown format with headers, lists, and text.
+    - **Control Type Mapping**: TitleBar/Header -> `#`, ListItem -> `-`, Text/Edit -> plain text.
+    - **URL Detection**: Identifies browser address bars for URL extraction.
+    - **Max Depth**: Limited to 10 levels to prevent infinite loops.
+- **`monitor` Tool**: Event-driven window monitoring with visual change detection.
+    - **Sensitivity Levels**: High (1%), Medium (5%), Low (15%) change thresholds.
+    - **Grid Indices**: Reports which grid cells changed for precise location tracking.
+    - **MCP Notifications**: Sends `window_monitor` type notifications on visual changes.
+    - **Session Management**: `stop_monitor` for proper resource cleanup.
 - **`close_window` Tool**: New tool to terminate a process by its window handle (HWND).
 - **Process Identification**: Added `GetWindowThreadProcessId` P/Invoke to `InputService` to link windows to their owning processes.
 - **Unit Tests**: Added comprehensive tests for `VisualChangeDetector` and `VideoTargetFinder` components.
@@ -49,6 +59,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Test Code Quality**: Fixed all static analysis warnings in E2E tests (CA1031, CA1050, CA1307, CA1310, CA1707).
 - **Static Analysis**: Changed AnalysisMode from 'All' to 'Recommended' to reduce CI build errors.
   - Updated AnalysisLevel from 'latest-all' to 'latest-recommended' in all project files.
+- **E2E Tests**: Added CI skip for video capture tests.
+  - `WatchVideo_ActiveWindow_ReturnsSessionId` and `WatchVideoV1_StartsSuccessfully` now skip on CI.
+  - These tests require an active video window (YouTube, etc.) to be running.
 
 ### Fixed
 - Stabilized E2E tests by ensuring a fresh application instance is used for each suite.
