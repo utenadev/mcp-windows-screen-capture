@@ -2,98 +2,159 @@
 
 This document provides detailed information about the MCP tools available in this server.
 
-## Summary Table
+## Tools Summary
 
 | Category | Tool | Description |
 |----------|------|-------------|
-| **Information** | `list_all` | List all monitors and windows |
-| | `list_monitors` | List all available monitors |
-| | `list_windows` | List all visible applications |
-| **Vision (Capture)** | `capture` | Capture any target (monitor, window, or region) |
-| | `see` | Capture a screenshot of a monitor or window |
-| | `capture_region` | Capture an arbitrary screen region |
-| | `capture_window` | Capture a specific window by HWND |
-| **Vision (Watch)** | `watch` | Start monitoring/streaming a target |
-| | `stop_watch` | Stop a monitoring session |
-| | `start_watching` | Start a screen capture stream (legacy) |
-| | `stop_watching` | Stop a running stream (legacy) |
-| | `get_latest_frame`| Get the latest captured frame |
-| **Control (Mouse)** | `mouse_move` | Move cursor to specific coordinates |
-| | `mouse_click` | Mouse click (left/right/middle, double-click) |
-| | `mouse_drag` | Drag and drop operation |
-| **Control (Keyboard)**| `keyboard_key` | Press safe navigation keys only (security restricted) |
-| **Hearing** | `listen` | Transcribe system audio or microphone |
-| | `list_audio_devices` | List available audio devices |
-| | `get_active_audio_sessions` | List running audio sessions |
-| **Config/AI** | `get_whisper_model_info` | Get information about available Whisper models |
+| **Vision** | `visual_list` | List monitors, windows, or all |
+| | `visual_capture` | Capture monitor, window, or region |
+| | `visual_watch` | Continuous monitoring/streaming |
+| | `visual_stop` | Stop any active session |
+| **Audio** | `listen` | Record and transcribe audio using Whisper |
+| **Input** | `input_mouse` | Mouse operations (move, click, drag) |
+| | `input_window` | Window operations (close, minimize, maximize, restore) |
+| | `keyboard_key` | Press navigation keys (security restricted) |
+| **Utility** | `read_window_text` | Extract window text as Markdown |
 
 ---
 
-## Detailed Tool Reference
+## Vision Tools
 
-### Screen & Window Capture
+### `visual_list`
 
-#### `capture` (Recommended)
-A single tool to capture a monitor, a window, or a specific region.
+List monitors, windows, or all visual targets.
+
 - **Arguments:**
-  - `target` (string): "primary", "monitor", "window", "region" (default: "primary")
-  - `targetId` (string): Monitor index or HWND (required if target is "monitor" or "window")
-  - `x`, `y`, `w`, `h` (number): Region specification (required if target is "region")
-  - `quality` (number): JPEG quality 1-100 (default: 80)
-  - `maxWidth` (number): Maximum width. Resizes if larger while maintaining aspect ratio (default: 1920)
+  - `type` (string): "monitor", "window", or "all" (default: "all")
+
+- **Returns:**
+  - `count`: Number of items
+  - `items`: Array of monitors or windows
+
+### `visual_capture`
+
+Capture a screenshot of a monitor, window, or region.
+
+- **Arguments:**
+  - `target` (string): "monitor", "window", "region", or "primary" (default: "primary")
+  - `monitorIndex` (number): Monitor index for "monitor" target
+  - `hwnd` (string): Window handle for "window" target
+  - `x`, `y`, `w`, `h` (number): Region coordinates for "region" target
+  - `mode` (string): "normal" (quality 30) or "detailed" (quality 70)
+  - `quality` (number): JPEG quality 1-100 (default: 30 for normal, 70 for detailed)
+
+- **Returns:**
+  - Base64 encoded image data
+
+### `visual_watch`
+
+Start continuous monitoring or streaming of a visual target.
+
+- **Arguments:**
+  - `mode` (string): "video", "monitor", or "unified" (default: "video")
+  - `target` (string): "monitor", "window", or "region"
+  - `monitorIndex` (number): Monitor index for "monitor" target
+  - `hwnd` (string): Window handle for "window" target
+  - `x`, `y`, `w`, `h` (number): Region coordinates
+  - `fps` (number): Frames per second 1-30 (default: 5)
+  - `detectChanges` (boolean): Enable change detection (default: true)
+  - `threshold` (number): Change threshold 0.05-0.20 (default: 0.08)
+
+- **Returns:**
+  - `sessionId`: Session ID for this watch session
+
+### `visual_stop`
+
+Stop any active visual or input session.
+
+- **Arguments:**
+  - `sessionId` (string): Session ID to stop (optional)
+  - `type` (string): "watch", "capture", "audio", "monitor", or "all" (default: "all")
+
+- **Returns:**
+  - Confirmation message
 
 ---
 
-### Desktop Input (Control)
+## Audio Tools
 
-#### `mouse_move`
-Moves the mouse cursor to the specified coordinates.
-- **Arguments:**
-  - `x` (number): Destination X coordinate (physical pixels)
-  - `y` (number): Destination Y coordinate (physical pixels)
+### `listen`
 
-#### `mouse_click`
-Simulates a mouse click.
-- **Arguments:**
-  - `button` (string): "left", "right", "middle" (default: "left")
-  - `count` (number): Number of clicks. Set to 2 for double-click (default: 1)
-
-#### `mouse_drag`
-Drags from the start position to the end position while holding the left button.
-- **Arguments:**
-  - `startX`, `startY` (number): Start coordinates
-  - `endX`, `endY` (number): Drop destination coordinates
-
-#### `keyboard_key` (Security Restricted)
-Simulates pressing, releasing, or clicking a navigation key only.
-
-**⚠️ Security Notice:** For security reasons, only safe navigation keys are allowed. Text typing and modifier keys (Ctrl, Alt, Win) are blocked to prevent unintended system operations.
+Record system audio or microphone and transcribe using Whisper AI.
 
 - **Arguments:**
-  - `key` (string): Key name.
-    - **Allowed keys:** `enter`, `return`, `tab`, `escape`, `esc`, `space`, `backspace`, `delete`, `del`, `left`, `up`, `right`, `down`, `home`, `end`, `pageup`, `pagedown`
-    - **Not allowed:** `ctrl`, `alt`, `win`, `shift` (blocked for security)
-  - `action` (string): "click", "press" (hold down), "release" (let go) (default: "click")
-
-- **Use Cases:**
-  - Navigate forms using Tab key
-  - Confirm actions with Enter
-  - Close dialogs with Escape
-  - Navigate lists and menus with arrow keys
-  - Navigate pages with PageUp/PageDown
-
-- **Note:** For text input, use mouse to focus a text field first. Direct text typing is not supported for security reasons.
-
----
-
-### Audio & Transcription
-
-#### `listen`
-Records audio and transcribes it using Whisper.
-- **Arguments:**
-  - `source` (string): "system", "microphone", "file", "audio_session" (default: "system")
-  - `sourceId` (string): File path or Audio Session ID
+  - `source` (string): "system", "microphone", "file", or "audio_session" (default: "system")
+  - `sourceId` (string): File path or audio session ID
   - `duration` (number): Recording duration in seconds (default: 10)
-  - `language` (string): Language code. "auto" or "ja", "en", "zh", etc. (default: "auto")
-  - `modelSize` (string): Model size. "tiny", "base", "small", "medium", "large" (default: "base")
-  - `translate` (boolean): Whether to translate to English (default: false)
+  - `language` (string): "auto" or language code "ja", "en", "zh", etc. (default: "auto")
+  - `modelSize` (string): "tiny", "base", "small", "medium", "large" (default: "base")
+  - `translate` (boolean): Translate to English (default: false)
+
+- **Returns:**
+  - Transcribed text
+
+---
+
+## Input Tools
+
+### `input_mouse`
+
+Perform mouse operations.
+
+- **Arguments:**
+  - `action` (string): "move", "click", "drag", or "scroll"
+  - `x`, `y` (number): Target coordinates
+  - `button` (string): "left", "right", or "middle" (default: "left")
+  - `clicks` (number): Number of clicks (default: 1)
+  - `delta` (number): Scroll amount for "scroll" action
+
+- **Returns:**
+  - Confirmation message
+
+### `input_window`
+
+Perform window operations.
+
+- **Arguments:**
+  - `hwnd` (string): Window handle
+  - `action` (string): "close", "minimize", "maximize", "restore", "activate", or "focus"
+
+- **Returns:**
+  - Confirmation message
+
+### `keyboard_key` (Security Restricted)
+
+Press navigation keys only. Text typing and modifier keys (Ctrl, Alt, Win) are blocked for security.
+
+- **Arguments:**
+  - `key` (string): Navigation key name
+    - **Allowed:** `enter`, `return`, `tab`, `escape`, `esc`, `space`, `backspace`, `delete`, `del`, `left`, `up`, `right`, `down`, `home`, `end`, `pageup`, `pagedown`
+    - **Blocked:** `ctrl`, `alt`, `win`, `shift`
+  - `action` (string): "click", "press", or "release" (default: "click")
+
+- **Returns:**
+  - Confirmation message
+
+---
+
+## Utility Tools
+
+### `read_window_text`
+
+Extract text content from a window using UI Automation.
+
+- **Arguments:**
+  - `hwndStr` (string): Window handle as string
+  - `includeButtons` (boolean): Include button text in output (default: false)
+
+- **Returns:**
+  - Markdown formatted text content
+
+---
+
+## HTTP Streaming
+
+For `visual_watch`, frames can be streamed via HTTP:
+
+- **Endpoint:** `http://localhost:5000/frame/{sessionId}`
+- Returns the latest frame as JPEG image

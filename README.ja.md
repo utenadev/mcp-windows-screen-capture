@@ -105,11 +105,11 @@ WindowsDesktopUse.exe whisper          # 利用可能なモデル一覧とイン
 WindowsDesktopUse.exe whisper --list   # モデル一覧のみ表示
 ```
 
-## 利用可能な MCP ツール（v2.0 統合ツール）
+## 利用可能な MCP ツール
 
 ### 視覚系（Visual）
 - **`visual_list`**: モニター、ウィンドウ、またはすべてを一覧表示。`type` パラメータで切り替え。
-- **`visual_capture`**: モニター、ウィンドウ、領域のキャプチャ。動的クオリティ制御付き（Normal=30/Detailed=70）。
+- **`visual_capture`**: モニター、ウィンドウ、領域のキャプチャ。動的Qualité制御付き（Normal=30/Detailed=70）。
 - **`visual_watch`**: 継続的な監視・ストリーミング。`mode` パラメータで video/monitor/unified を切り替え。
 - **`visual_stop`**: すべてのセッションを統合して停止。
 
@@ -124,13 +124,7 @@ WindowsDesktopUse.exe whisper --list   # モデル一覧のみ表示
 ### 補助系（Utility）
 - **`read_window_text`**: UI Automation でウィンドウのテキストを Markdown 形式で抽出。
 
-> ### ⚠️ v2.0 からの重要な変更点
-> すべてのツールが統合され、直感的な「動詞 + 対象」形式になりました。
-> 例: `mouse_move` → `input_mouse(action="move")`
->
-> **移行ガイド**: [MIGRATION_GUIDE_v2.md](docs/MIGRATION_GUIDE_v2.md)
-
- 詳細な引数や使用例については、[**ツールガイド**](docs/TOOLS.ja.md) を参照してください。
+詳細な引数や使用例については、[**ツールガイド**](docs/TOOLS.ja.md) を参照してください。
 
 ## ドキュメント一覧
 

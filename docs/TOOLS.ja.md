@@ -1,99 +1,160 @@
 # windows-desktop-use-mcp ツール詳細
 
-このドキュメントでは、本サーバーで利用可能な MCP ツールの詳細について説明します。
+このドキュメントでは，本サーバーで利用可能な MCP ツールの詳細について説明します。
 
 ## ツール一覧
 
 | カテゴリ | ツール名 | 説明 |
 |----------|----------|------|
-| **情報取得** | `list_all` | すべてのモニターとウィンドウを一覧表示 |
-| | `list_monitors` | 利用可能なモニターの一覧を取得 |
-| | `list_windows` | 表示されているアプリケーションの一覧を取得 |
-| **視覚 (Capture)** | `capture` | 任意のターゲット（モニター、ウィンドウ、領域）をキャプチャ |
-| | `see` | モニターまたはウィンドウのスクリーンショットを撮影 |
-| | `capture_region` | 画面の指定領域をキャプチャ |
-| | `capture_window` | HWND を指定してウィンドウをキャプチャ |
-| **視覚 (Watch)** | `watch` | 任意のターゲットの監視・ストリーミングを開始 |
-| | `stop_watch` | 監視セッションを停止 |
-| | `start_watching` | 画面キャプチャストリームを開始 (レガシー) |
-| | `stop_watching` | キャプチャストリームを停止 (レガシー) |
-| | `get_latest_frame`| 最新フレームを取得 |
-| **操作 (Mouse)** | `mouse_move` | 指定座標へマウスカーソルを移動 |
-| | `mouse_click` | マウスクリック（左/右/中、ダブルクリック） |
-| | `mouse_drag` | ドラッグ＆ドロップ操作 |
-| **操作 (Keyboard)**| `keyboard_key` | 安全なナビゲーションキーのみ操作（セキュリティ制限あり） |
-| **聴覚** | `listen` | システム音やマイクを文字起こし |
-| | `list_audio_devices` | オーディオデバイスの一覧を取得 |
-| | `get_active_audio_sessions` | 実行中のオーディオセッション一覧を取得 |
-| **設定/AI** | `get_whisper_model_info` | 利用可能な Whisper モデルの情報を取得 |
+| **視覚** | `visual_list` | モニター，ウィンドウ，またはすべてを一覧表示 |
+| | `visual_capture` | モニター，ウィンドウ，または領域をキャプチャ |
+| | `visual_watch` | 継続的な監視・ストリーミング |
+| | `visual_stop` | アクティブなセッションを停止 |
+| **聴覚** | `listen` | システム音やマイクを録音・文字起こし |
+| **操作** | `input_mouse` | マウス操作（移動，クリック，ドラッグ） |
+| | `input_window` | ウィンドウ操作（閉じる，最小化，最大化，復元） |
+| | `keyboard_key` | ナビゲーションキー操作（セキュリティ制限あり） |
+| **補助** | `read_window_text` | ウィンドウのテキストを Markdown で抽出 |
 
 ---
 
-## ツール詳細リファレンス
+## 視覚ツール
 
-### スクリーン & ウィンドウキャプチャ
+### `visual_list`
 
-#### `capture` (推奨)
-一つのツールで、モニター、ウィンドウ、または指定領域をキャプチャします。
+モニター，ウィンドウ，またはすべての視覚ターゲットを一覧表示します。
+
 - **引数:**
-  - `target` (string): "primary", "monitor", "window", "region" (デフォルト: "primary")
-  - `targetId` (string): モニター番号または HWND (target が "monitor" または "window" の場合に必要)
-  - `x`, `y`, `w`, `h` (number): 領域指定 (target が "region" の場合に必須)
-  - `quality` (number): JPEG 品質 1-100 (デフォルト: 80)
-  - `maxWidth` (number): 最大幅。これより大きい場合はアスペクト比を維持して縮小されます (デフォルト: 1920)
+  - `type` (string): "monitor"，"window"，または "all"（デフォルト: "all"）
+
+- **戻り値:**
+  - `count`: アイテム数
+  - `items`: モニターまたはウィンドウの配列
+
+### `visual_capture`
+
+モニター，ウィンドウ，または領域のスクリーンショットを撮影します。
+
+- **引数:**
+  - `target` (string): "monitor"，"window"，"region"，または "primary"（デフォルト: "primary"）
+  - `monitorIndex` (number): "monitor" 用のモニター番号
+  - `hwnd` (string): "window" 用のウィンドウハンドル
+  - `x`, `y`, `w`, `h` (number): "region" 用の座標
+  - `mode` (string): "normal"（品質30）または "detailed"（品質70）
+  - `quality` (number): JPEG 品質 1-100（デフォルト: 30 または 70）
+
+- **戻り値:**
+  - Base64 エンコードされた画像データ
+
+### `visual_watch`
+
+視覚ターゲットの継続的な監視またはストリーミングを開始します。
+
+- **引数:**
+  - `mode` (string): "video"，"monitor"，または "unified"（デフォルト: "video"）
+  - `target` (string): "monitor"，"window"，または "region"
+  - `monitorIndex` (number): モニター番号
+  - `hwnd` (string): ウィンドウハンドル
+  - `x`, `y`, `w`, `h` (number): 領域座標
+  - `fps` (number): 1秒あたりのフレーム数 1-30（デフォルト: 5）
+  - `detectChanges` (boolean): 変化検出を有効化（デフォルト: true）
+  - `threshold` (number): 変化閾値 0.05-0.20（デフォルト: 0.08）
+
+- **戻り値:**
+  - `sessionId`: 監視セッションの ID
+
+### `visual_stop`
+
+アクティブな視覚または入力セッションを停止します。
+
+- **引数:**
+  - `sessionId` (string): 停止するセッション ID（省略可能）
+  - `type` (string): "watch"，"capture"，"audio"，"monitor"，または "all"（デフォルト: "all"）
+
+- **戻り値:**
+  - 確認メッセージ
 
 ---
 
-### デスクトップ操作 (Input)
+## 聴覚ツール
 
-#### `mouse_move`
-マウスカーソルを指定した座標に移動させます。
-- **引数:**
-  - `x` (number): 移動先の X 座標（物理ピクセル）
-  - `y` (number): 移動先の Y 座標（物理ピクセル）
+### `listen`
 
-#### `mouse_click`
-マウスのクリックをシミュレートします。
-- **引数:**
-  - `button` (string): "left", "right", "middle" (デフォルト: "left")
-  - `count` (number): クリック回数。2 を指定するとダブルクリックになります (デフォルト: 1)
-
-#### `mouse_drag`
-指定した開始座標から終了座標まで、左ボタンを押した状態でドラッグ＆ドロップします。
-- **引数:**
-  - `startX`, `startY` (number): ドラッグ開始座標
-  - `endX`, `endY` (number): ドロップ先の座標
-
-#### `keyboard_key`（セキュリティ制限あり）
-ナビゲーションキーの押下、解放、またはクリックのみをシミュレートします。
-
-**⚠️ セキュリティ通知:** セキュリティ上の理由から、安全なナビゲーションキーのみが許可されています。テキスト入力や修飾キー（Ctrl, Alt, Win）は、意図しないシステム操作を防ぐためにブロックされています。
+システム音やマイクを録音し，Whisper AI で文字起こしを行います。
 
 - **引数:**
-  - `key` (string): キー名。
-    - **許可されるキー:** `enter`, `return`, `tab`, `escape`, `esc`, `space`, `backspace`, `delete`, `del`, `left`, `up`, `right`, `down`, `home`, `end`, `pageup`, `pagedown`
-    - **許可されないキー:** `ctrl`, `alt`, `win`, `shift` (セキュリティのためブロック)
-  - `action` (string): "click", "press" (押し続ける), "release" (離す) (デフォルト: "click")
-
-- **使用例:**
-  - Tabキーでフォームを移動
-  - Enterキーでアクションを確定
-  - Escapeキーでダイアログを閉じる
-  - 矢印キーでリストやメニューを移動
-  - PageUp/PageDownでページ移動
-
-- **注意:** テキスト入力が必要な場合は、まずマウスでテキストフィールドにフォーカスを当ててください。セキュリティ上の理由から、直接のテキスト入力はサポートされていません。
-
----
-
-### オーディオ & 音声認識
-
-#### `listen`
-Whisper を使用してオーディオを録音し、文字起こしを行います。
-- **引数:**
-  - `source` (string): "system" (システム音), "microphone", "file", "audio_session" (デフォルト: "system")
+  - `source` (string): "system"，"microphone"，"file"，または "audio_session"（デフォルト: "system"）
   - `sourceId` (string): ファイルパスまたはオーディオセッション ID
-  - `duration` (number): 録音秒数 (デフォルト: 10)
-  - `language` (string): 言語。 "auto" または "ja", "en", "zh" 等 (デフォルト: "auto")
-  - `modelSize` (string): モデルサイズ。 "tiny", "base", "small", "medium", "large" (デフォルト: "base")
-  - `translate` (boolean): 英語に翻訳するかどうか (デフォルト: false)
+  - `duration` (number): 録音秒数（デフォルト: 10）
+  - `language` (string): "auto" または言語コード "ja"，"en"，"zh" 等（デフォルト: "auto"）
+  - `modelSize` (string): "tiny"，"base"，"small"，"medium"，"large"（デフォルト: "base"）
+  - `translate` (boolean): 英語に翻訳するかどうか（デフォルト: false）
+
+- **戻り値:**
+  - 文字起こしテキスト
+
+---
+
+## 操作ツール
+
+### `input_mouse`
+
+マウス操作を行います。
+
+- **引数:**
+  - `action` (string): "move"，"click"，"drag"，または "scroll"
+  - `x`, `y` (number): 対象座標
+  - `button` (string): "left"，"right"，または "middle"（デフォルト: "left"）
+  - `clicks` (number): クリック回数（デフォルト: 1）
+  - `delta` (number): "scroll" 操作のスクロール量
+
+- **戻り値:**
+  - 確認メッセージ
+
+### `input_window`
+
+ウィンドウ操作を行います。
+
+- **引数:**
+  - `hwnd` (string): ウィンドウハンドル
+  - `action` (string): "close"，"minimize"，"maximize"，"restore"，"activate"，または "focus"
+
+- **戻り値:**
+  - 確認メッセージ
+
+### `keyboard_key`（セキュリティ制限あり）
+
+ナビゲーションキーのみを操作できます。セキュリティ上の理由から，テキスト入力と修飾キー（Ctrl，Alt，Win）はブロックされています。
+
+- **引数:**
+  - `key` (string): ナビゲーションキー名
+    - **許可されるキー:** `enter`，`return`，`tab`，`escape`，`esc`，`space`，`backspace`，`delete`，`del`，`left`，`up`，`right`，`down`，`home`，`end`，`pageup`，`pagedown`
+    - **ブロックされるキー:** `ctrl`，`alt`，`win`，`shift`
+  - `action` (string): "click"，"press"，または "release"（デフォルト: "click"）
+
+- **戻り値:**
+  - 確認メッセージ
+
+---
+
+## 補助ツール
+
+### `read_window_text`
+
+UI Automation を使用してウィンドウからテキスト内容を抽出します。
+
+- **引数:**
+  - `hwndStr` (string): ウィンドウハンドル（文字列）
+  - `includeButtons` (boolean): ボタンテキストを含めるかどうか（デフォルト: false）
+
+- **戻り値:**
+  - Markdown 形式のテキスト内容
+
+---
+
+## HTTP ストリーミング
+
+`visual_watch` では，HTTP 経由でフレームをストリーミングできます:
+
+- **エンドポイント:** `http://localhost:5000/frame/{sessionId}`
+- 最新のフレームを JPEG 画像で返します

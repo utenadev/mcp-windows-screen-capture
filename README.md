@@ -103,7 +103,7 @@ WindowsDesktopUse.exe whisper          # List available models and check install
 WindowsDesktopUse.exe whisper --list   # Show model list only
 ```
 
-## Available MCP Tools (v2.0 Unified Tools)
+## Available MCP Tools
 
 ### Vision
 - **`visual_list`**: List monitors, windows, or all. Switch with `type` parameter.
@@ -117,16 +117,10 @@ WindowsDesktopUse.exe whisper --list   # Show model list only
 ### Input Control
 - **`input_mouse`**: Unified mouse operations (move, click, drag) with `action` parameter.
 - **`input_window`**: Window operations (close, minimize, maximize, restore) with `action` parameter.
-- **`keyboard_key``: Press safe navigation keys (Enter, Tab, arrow keys, etc.). Text typing and modifier keys (Ctrl, Alt, Win) are blocked for security.
+- **`keyboard_key`**: Press safe navigation keys (Enter, Tab, arrow keys, etc.). Text typing and modifier keys (Ctrl, Alt, Win) are blocked for security.
 
 ### Utility
 - **`read_window_text`**: Extract window text as Markdown using UI Automation.
-
-> ### ⚠️ Important Changes in v2.0
-> All tools have been unified into intuitive "verb + target" format.
-> Example: `mouse_move` → `input_mouse(action="move")`
->
-> **Migration Guide**: [MIGRATION_GUIDE_v2.md](docs/MIGRATION_GUIDE_v2.md)
 
 ## Documentation Index
 
