@@ -65,14 +65,17 @@ public class YouTubeSpecificE2ETests
             Assert.Ignore("Skipping on CI: Requires YouTube window");
 
         // 1. ウィンドウ一覧を取得
-        var windowsResult = await _client!.CallToolAsync("list_windows", new Dictionary<string, object?>())
+        var windowsResult = await _client!.CallToolAsync("visual_list", new Dictionary<string, object?> { ["type"] = "window" })
             .ConfigureAwait(false);
         
         var windowsContent = windowsResult.Content.OfType<TextContentBlock>().FirstOrDefault();
         Assert.That(windowsContent, Is.Not.Null);
 
-        var windowsJson = windowsContent!.Text ?? "[]";
-        var windows = TestHelper.DeserializeJson<List<WindowInfo>>(windowsJson) ?? new List<WindowInfo>();
+        var windowsJson = windowsContent!.Text ?? "{\"items\":[]}";
+        var windowsResponse = TestHelper.DeserializeJson<Dictionary<string, object>>(windowsJson);
+        var windows = windowsResponse != null && windowsResponse.ContainsKey("items")
+            ? TestHelper.DeserializeJson<List<WindowInfo>>(windowsResponse["items"].ToString()!) ?? new List<WindowInfo>()
+            : new List<WindowInfo>();
         
         // 2. 「MASTERキートン」を含むYouTubeウィンドウを探す
         var youtubeWindow = windows.FirstOrDefault(w => 
@@ -89,12 +92,12 @@ public class YouTubeSpecificE2ETests
         Console.WriteLine($"[Test] Found YouTube window: hwnd={youtubeWindow.Hwnd}, title={youtubeWindow.Title}");
 
         // 3. 動画キャプチャを開始
-        var result = await _client!.CallToolAsync("watch_video", new Dictionary<string, object?>
+        var result = await _client!.CallToolAsync("visual_watch", new Dictionary<string, object?>
         {
-            ["targetName"] = "ActiveWindow",
-            ["fps"] = 5,
-            ["quality"] = 60,
-            ["enableChangeDetection"] = true
+            ["mode"] = "video",
+            ["target"] = "window",
+            ["hwnd"] = youtubeWindow.Hwnd.ToString(),
+            ["fps"] = 5
         }).ConfigureAwait(false);
 
         Assert.That(result, Is.Not.Null);
@@ -102,7 +105,8 @@ public class YouTubeSpecificE2ETests
         var textContent = result.Content.OfType<TextContentBlock>().FirstOrDefault();
         Assert.That(textContent, Is.Not.Null);
 
-        var sessionId = textContent!.Text?.Trim('"');
+        // visual_watch returns sessionId as plain string (not JSON)
+        var sessionId = textContent!.Text!.Trim('"');
         Assert.That(sessionId, Is.Not.Null.And.Not.Empty);
         Assert.That(Guid.TryParse(sessionId, out _), Is.True);
 
@@ -111,17 +115,8 @@ public class YouTubeSpecificE2ETests
         // 4. 3秒間キャプチャを実行
         await Task.Delay(3000).ConfigureAwait(false);
 
-        // 5. 最新フレームを取得
-        var frameResult = await _client.CallToolAsync("get_latest_video_frame", new Dictionary<string, object?>
-        {
-            ["sessionId"] = sessionId
-        }).ConfigureAwait(false);
-
-        Assert.That(frameResult, Is.Not.Null);
-        Console.WriteLine($"[Test] Frame result: {frameResult.Content.FirstOrDefault()}");
-
-        // 6. ストリームを停止
-        var stopResult = await _client.CallToolAsync("stop_watch_video", new Dictionary<string, object?>
+        // 5. ストリームを停止 (get_latest_video_frame is not available in unified API)
+        var stopResult = await _client.CallToolAsync("visual_stop", new Dictionary<string, object?>
         {
             ["sessionId"] = sessionId
         }).ConfigureAwait(false);

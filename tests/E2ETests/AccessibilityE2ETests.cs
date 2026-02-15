@@ -71,14 +71,17 @@ public class AccessibilityE2ETests
             await Task.Delay(3000).ConfigureAwait(false);
 
             // Get windows list and find Notepad
-            var windowsResult = await _client!.CallToolAsync("list_windows", new Dictionary<string, object?>())
+            var windowsResult = await _client!.CallToolAsync("visual_list", new Dictionary<string, object?> { ["type"] = "window" })
                 .ConfigureAwait(false);
             
             var windowsContent = windowsResult.Content.OfType<TextContentBlock>().FirstOrDefault();
             Assert.That(windowsContent, Is.Not.Null);
 
-            var windowsJson = windowsContent!.Text ?? "[]";
-            var windows = TestHelper.DeserializeJson<List<WindowInfo>>(windowsJson) ?? new List<WindowInfo>();
+            var windowsJson = windowsContent!.Text ?? "{\"items\":[]}";
+            var windowsResponse = TestHelper.DeserializeJson<Dictionary<string, object>>(windowsJson);
+            var windows = windowsResponse != null && windowsResponse.ContainsKey("items") 
+                ? TestHelper.DeserializeJson<List<WindowInfo>>(windowsResponse["items"].ToString()!) ?? new List<WindowInfo>()
+                : new List<WindowInfo>();
             
             // Find Notepad window
             var notepadWindow = windows.FirstOrDefault(w => w.Title.Contains("Notepad", StringComparison.OrdinalIgnoreCase) || 
@@ -96,7 +99,7 @@ public class AccessibilityE2ETests
             // Call read_window_text
             var result = await _client!.CallToolAsync("read_window_text", new Dictionary<string, object?>
             {
-                ["hwnd"] = hwnd,
+                ["hwndStr"] = hwnd.ToString(),
                 ["includeButtons"] = false
             }).ConfigureAwait(false);
 
@@ -125,7 +128,7 @@ public class AccessibilityE2ETests
     {
         var result = await _client!.CallToolAsync("read_window_text", new Dictionary<string, object?>
         {
-            ["hwnd"] = -1, // Invalid handle
+            ["hwndStr"] = "-1", // Invalid handle
             ["includeButtons"] = false
         }).ConfigureAwait(false);
 

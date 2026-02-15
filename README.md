@@ -103,24 +103,30 @@ WindowsDesktopUse.exe whisper          # List available models and check install
 WindowsDesktopUse.exe whisper --list   # Show model list only
 ```
 
-## Available MCP Tools (Summary)
+## Available MCP Tools (v2.0 Unified Tools)
 
-### Vision & Information
-- `list_all`: List all monitors and windows.
-- `capture`: Capture any target as an image.
-- `watch`: Start monitoring/streaming a target.
+### Vision
+- **`visual_list`**: List monitors, windows, or all. Switch with `type` parameter.
+- **`visual_capture`**: Capture monitor, window, or region. Dynamic quality control (Normal=30/Detailed=70).
+- **`visual_watch`**: Continuous monitoring/streaming. Switch video/monitor/unified with `mode` parameter.
+- **`visual_stop`**: Stop all sessions (watch, capture, audio) with unified command.
 
 ### Hearing
-- `listen`: Record system audio or microphone and transcribe to text.
-- `list_audio_devices`: List available audio devices.
+- **`listen`**: Record system audio or microphone and transcribe to text using Whisper AI.
 
 ### Input Control
-- `mouse_move`: Move cursor to specific coordinates.
-- `mouse_click`: Left/Right/Middle click, and double-clicks.
-- `mouse_drag`: Drag and drop operations.
-- `keyboard_key`: Press safe navigation keys (Enter, Tab, arrow keys, etc.). Text typing and modifier keys (Ctrl, Alt, Win) are blocked for security.
+- **`input_mouse`**: Unified mouse operations (move, click, drag) with `action` parameter.
+- **`input_window`**: Window operations (close, minimize, maximize, restore) with `action` parameter.
+- **`keyboard_key``: Press safe navigation keys (Enter, Tab, arrow keys, etc.). Text typing and modifier keys (Ctrl, Alt, Win) are blocked for security.
 
-For detailed arguments and examples, see the [**Tools Guide**](docs/TOOLS.md).
+### Utility
+- **`read_window_text`**: Extract window text as Markdown using UI Automation.
+
+> ### ⚠️ Important Changes in v2.0
+> All tools have been unified into intuitive "verb + target" format.
+> Example: `mouse_move` → `input_mouse(action="move")`
+>
+> **Migration Guide**: [MIGRATION_GUIDE_v2.md](docs/MIGRATION_GUIDE_v2.md)
 
 ## Documentation Index
 

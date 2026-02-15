@@ -75,14 +75,17 @@ public class MonitorE2ETests
             await Task.Delay(3000).ConfigureAwait(false);
 
             // Get windows list and find Notepad
-            var windowsResult = await _client!.CallToolAsync("list_windows", new Dictionary<string, object?>())
+            var windowsResult = await _client!.CallToolAsync("visual_list", new Dictionary<string, object?> { ["type"] = "window" })
                 .ConfigureAwait(false);
             
             var windowsContent = windowsResult.Content.OfType<TextContentBlock>().FirstOrDefault();
             Assert.That(windowsContent, Is.Not.Null);
 
-            var windowsJson = windowsContent!.Text ?? "[]";
-            var windows = TestHelper.DeserializeJson<List<WindowInfo>>(windowsJson) ?? new List<WindowInfo>();
+            var windowsJson = windowsContent!.Text ?? "{\"items\":[]}";
+            var windowsResponse = TestHelper.DeserializeJson<Dictionary<string, object>>(windowsJson);
+            var windows = windowsResponse != null && windowsResponse.ContainsKey("items")
+                ? TestHelper.DeserializeJson<List<WindowInfo>>(windowsResponse["items"].ToString()!) ?? new List<WindowInfo>()
+                : new List<WindowInfo>();
             
             // Find Notepad window
             var notepadWindow = windows.FirstOrDefault(w => w.Title.Contains("Notepad", StringComparison.OrdinalIgnoreCase) || 
@@ -98,11 +101,12 @@ public class MonitorE2ETests
             Console.WriteLine($"[Test] Found Notepad window: hwnd={hwnd}, title={notepadWindow.Title}");
 
             // Start monitoring
-            var result = await _client!.CallToolAsync("monitor", new Dictionary<string, object?>
+            var result = await _client!.CallToolAsync("visual_watch", new Dictionary<string, object?>
             {
-                ["hwnd"] = hwnd,
-                ["sensitivity"] = "Medium",
-                ["intervalMs"] = 1000
+                ["mode"] = "monitor",
+                ["target"] = "window",
+                ["hwnd"] = hwnd.ToString(),
+                ["fps"] = 1
             }).ConfigureAwait(false);
 
             Assert.That(result, Is.Not.Null);
@@ -120,7 +124,7 @@ public class MonitorE2ETests
             await Task.Delay(3000).ConfigureAwait(false);
 
             // Stop monitoring
-            var stopResult = await _client.CallToolAsync("stop_monitor", new Dictionary<string, object?>
+            var stopResult = await _client.CallToolAsync("visual_stop", new Dictionary<string, object?>
             {
                 ["sessionId"] = sessionId
             }).ConfigureAwait(false);
@@ -140,7 +144,7 @@ public class MonitorE2ETests
     [Test]
     public async Task StopMonitor_InvalidSession_ReturnsMessage()
     {
-        var result = await _client!.CallToolAsync("stop_monitor", new Dictionary<string, object?>
+        var result = await _client!.CallToolAsync("visual_stop", new Dictionary<string, object?>
         {
             ["sessionId"] = "non-existent-session"
         }).ConfigureAwait(false);

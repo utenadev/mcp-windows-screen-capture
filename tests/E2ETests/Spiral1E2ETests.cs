@@ -64,15 +64,15 @@ public class Spiral1E2ETests
         if (IsCiEnvironment())
             Assert.Ignore("Skipping on CI: Requires active video window (YouTube, etc.) to be running");
 
-        var result = await _client!.CallToolAsync("watch_video_v1", new Dictionary<string, object?>
+        var result = await _client!.CallToolAsync("visual_watch", new Dictionary<string, object?>
         {
+            ["mode"] = "video",
+            ["target"] = "region",
             ["x"] = 100,
             ["y"] = 100,
             ["w"] = 640,
             ["h"] = 360,
-            ["quality"] = 60,
-            ["fps"] = 5,
-            ["enableAudio"] = false // Disable audio for faster test
+            ["fps"] = 5
         }).ConfigureAwait(false);
 
         Assert.That(result, Is.Not.Null);
@@ -80,7 +80,8 @@ public class Spiral1E2ETests
         var textContent = result.Content.OfType<TextContentBlock>().FirstOrDefault();
         Assert.That(textContent, Is.Not.Null);
         
-        var sessionId = textContent!.Text?.Trim('"');
+        // visual_watch returns sessionId as plain string (not JSON)
+        var sessionId = textContent!.Text!.Trim('"');
         Assert.That(sessionId, Is.Not.Null.And.Not.Empty);
         Assert.That(Guid.TryParse(sessionId, out _), Is.True);
 
@@ -90,7 +91,7 @@ public class Spiral1E2ETests
         await Task.Delay(500).ConfigureAwait(false);
 
         // Stop the stream
-        var stopResult = await _client.CallToolAsync("stop_watch_video_v1", new Dictionary<string, object?>
+        var stopResult = await _client.CallToolAsync("visual_stop", new Dictionary<string, object?>
         {
             ["sessionId"] = sessionId
         }).ConfigureAwait(false);
@@ -102,13 +103,15 @@ public class Spiral1E2ETests
     [Test]
     public async Task WatchVideoV1_InvalidDimensions_ReturnsError()
     {
-        var result = await _client!.CallToolAsync("watch_video_v1", new Dictionary<string, object?>
+        var result = await _client!.CallToolAsync("visual_watch", new Dictionary<string, object?>
         {
+            ["mode"] = "video",
+            ["target"] = "region",
             ["x"] = 100,
             ["y"] = 100,
             ["w"] = 0, // Invalid
             ["h"] = 360,
-            ["enableAudio"] = false
+            ["fps"] = 5
         }).ConfigureAwait(false);
 
         Assert.That(result, Is.Not.Null);
@@ -122,7 +125,7 @@ public class Spiral1E2ETests
     [Test]
     public async Task StopWatchVideoV1_InvalidSession_ReturnsMessage()
     {
-        var result = await _client!.CallToolAsync("stop_watch_video_v1", new Dictionary<string, object?>
+        var result = await _client!.CallToolAsync("visual_stop", new Dictionary<string, object?>
         {
             ["sessionId"] = "non-existent-session"
         }).ConfigureAwait(false);

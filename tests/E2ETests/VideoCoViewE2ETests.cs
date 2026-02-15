@@ -62,30 +62,32 @@ public class VideoCoViewE2ETests
     public async Task WatchVideoV2StartsAndStopsSuccessfully()
     {
         // Start watching a small region
-        var result = await _client!.CallToolAsync("watch_video_v2",
+        var result = await _client!.CallToolAsync("visual_watch",
             new Dictionary<string, object?>
             {
+                ["mode"] = "video",
+                ["target"] = "region",
                 ["x"] = 0,
                 ["y"] = 0,
                 ["w"] = 100,
                 ["h"] = 100,
-                ["intervalMs"] = 2000,
-                ["quality"] = 50,
-                ["modelSize"] = "tiny"
+                ["fps"] = 1
             }).ConfigureAwait(false);
 
         Assert.That(result, Is.Not.Null);
         var resultText = result.Content.OfType<TextContentBlock>().First()?.Text;
         Assert.That(resultText, Is.Not.Null);
         
-        var sessionId = resultText.Trim('\"');
+        // visual_watch returns sessionId as plain string (not JSON)
+        var sessionId = resultText.Trim('"');
         Assert.That(string.IsNullOrEmpty(sessionId), Is.False);
-        Console.WriteLine($"[Test] Started VideoCoViewV2 session: {sessionId}");
+        Assert.That(Guid.TryParse(sessionId, out _), Is.True);
+        Console.WriteLine($"[Test] Started visual_watch session: {sessionId}");
 
         await Task.Delay(2000).ConfigureAwait(false);
 
         // Stop the session
-        var stopResult = await _client.CallToolAsync("stop_watch_video_v2",
+        var stopResult = await _client.CallToolAsync("visual_stop",
             new Dictionary<string, object?> { ["sessionId"] = sessionId }).ConfigureAwait(false);
 
         Assert.That(stopResult, Is.Not.Null);

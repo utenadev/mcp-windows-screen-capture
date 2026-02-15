@@ -105,30 +105,30 @@ WindowsDesktopUse.exe whisper          # 利用可能なモデル一覧とイン
 WindowsDesktopUse.exe whisper --list   # モデル一覧のみ表示
 ```
 
-## 利用可能な MCP ツール（概要）
+## 利用可能な MCP ツール（v2.0 統合ツール）
 
-### 視覚・情報取得
-- `list_all`: すべてのモニターとウィンドウを一覧表示。
-- `capture`: 任意のターゲットを画像としてキャプチャ。
-- `watch`: ターゲットの監視・ストリーミングを開始。
+### 視覚系（Visual）
+- **`visual_list`**: モニター、ウィンドウ、またはすべてを一覧表示。`type` パラメータで切り替え。
+- **`visual_capture`**: モニター、ウィンドウ、領域のキャプチャ。動的クオリティ制御付き（Normal=30/Detailed=70）。
+- **`visual_watch`**: 継続的な監視・ストリーミング。`mode` パラメータで video/monitor/unified を切り替え。
+- **`visual_stop`**: すべてのセッションを統合して停止。
 
-### 聴覚
-- `listen`: システム音やマイク入力を録音し、テキストに変換。
-- `list_audio_devices`: 利用可能なオーディオデバイスを一覧表示。
+### 聴覚系（Audio）
+- **`listen`**: システム音やマイク入力を録音し、Whisper AI でテキストに変換。
 
-### 操作
-- `mouse_move`: 指定座標へのカーソル移動。
-- `mouse_click`: 左/右/中クリック、ダブルクリック。
-- `mouse_drag`: ドラッグ＆ドロップ操作。
-- `keyboard_key`: 安全なナビゲーションキー（Enter, Tab, 矢印キー等）の操作。セキュリティのため、テキスト入力と修飾キー（Ctrl, Alt, Win）はブロックされています。
+### 操作系（Input）
+- **`input_mouse`**: マウス移動、クリック、ドラッグを `action` パラメータで統合。
+- **`input_window`**: ウィンドウ操作（閉じる、最小化、最大化、復元）を `action` パラメータで統合。
+- **`keyboard_key`**: 安全なナビゲーションキー（Enter, Tab, 矢印キー等）の操作。セキュリティのため、テキスト入力と修飾キー（Ctrl, Alt, Win）はブロックされています。
 
-> ### ⚠️ hwnd を使う際の注意
-> Windowsハンドル（HWND）は整数値ですが、MCPツールでは文字列としても受け付けるようになりました。
-> これにより、JSON経由での数値送信時に発生していた `params/hwnd must be integer,null` エラーを回避できます。
+### 補助系（Utility）
+- **`read_window_text`**: UI Automation でウィンドウのテキストを Markdown 形式で抽出。
+
+> ### ⚠️ v2.0 からの重要な変更点
+> すべてのツールが統合され、直感的な「動詞 + 対象」形式になりました。
+> 例: `mouse_move` → `input_mouse(action="move")`
 >
-> **対応方法:**
-> - `list_windows` で取得した hwnd は、整数または文字列として使用できます
-> - 以前の整数形式も引き続きサポートしています
+> **移行ガイド**: [MIGRATION_GUIDE_v2.md](docs/MIGRATION_GUIDE_v2.md)
 
  詳細な引数や使用例については、[**ツールガイド**](docs/TOOLS.ja.md) を参照してください。
 

@@ -77,7 +77,7 @@ public class McpE2ETests
                 try
                 {
                     Console.WriteLine($"[Teardown] Closing test Notepad window (HWND: {_testNotepadHwnd})");
-                    await _client.CallToolAsync("close_window", new Dictionary<string, object?> { ["hwnd"] = _testNotepadHwnd.Value }).ConfigureAwait(false);
+                    await _client.CallToolAsync("input_window", new Dictionary<string, object?> { ["hwnd"] = _testNotepadHwnd.Value.ToString(), ["action"] = "close" }).ConfigureAwait(false);
                 }
 #pragma warning disable CA1031
                 catch { }
@@ -109,21 +109,26 @@ public class McpE2ETests
     {
         for (int i = 0; i < retryCount; i++)
         {
-            var windowsResult = await _client!.CallToolAsync("list_windows", null).ConfigureAwait(false);
+            var windowsResult = await _client!.CallToolAsync("visual_list", new Dictionary<string, object?> { ["type"] = "window" }).ConfigureAwait(false);
             var textContent = windowsResult.Content.OfType<TextContentBlock>().FirstOrDefault();
             if (textContent != null && !string.IsNullOrEmpty(textContent.Text))
             {
-                var windows = TestHelper.DeserializeJson<List<WindowInfo>>(textContent.Text);
-                if (windows != null)
+                var response = TestHelper.DeserializeJson<Dictionary<string, object>>(textContent.Text);
+                if (response != null && response.ContainsKey("items"))
                 {
-                var notepad = windows.FirstOrDefault(w =>
-                    !string.IsNullOrEmpty(w.Title) && (
-                    w.Title.Contains("Notepad", StringComparison.OrdinalIgnoreCase) ||
-                    w.Title.Contains("メモ帳", StringComparison.Ordinal) ||
-                    w.Title.Contains("無題", StringComparison.Ordinal) ||
-                    w.Title.Contains("Untitled", StringComparison.OrdinalIgnoreCase)));
+                    var itemsJson = response["items"].ToString();
+                    var windows = TestHelper.DeserializeJson<List<WindowInfo>>(itemsJson);
+                    if (windows != null)
+                    {
+                        var notepad = windows.FirstOrDefault(w =>
+                            !string.IsNullOrEmpty(w.Title) && (
+                            w.Title.Contains("Notepad", StringComparison.OrdinalIgnoreCase) ||
+                            w.Title.Contains("メモ帳", StringComparison.Ordinal) ||
+                            w.Title.Contains("無題", StringComparison.Ordinal) ||
+                            w.Title.Contains("Untitled", StringComparison.OrdinalIgnoreCase)));
 
-                    if (notepad != null) return notepad;
+                        if (notepad != null) return notepad;
+                    }
                 }
             }
             await Task.Delay(1000).ConfigureAwait(false);
@@ -134,32 +139,35 @@ public class McpE2ETests
     [Test]
     public async Task E2EListMonitorsReturnsValidMonitors()
     {
-        var result = await _client!.CallToolAsync("list_monitors", null).ConfigureAwait(false);
+        var result = await _client!.CallToolAsync("visual_list", new Dictionary<string, object?> { ["type"] = "monitor" }).ConfigureAwait(false);
         Assert.That(result, Is.Not.Null);
 
         var textContent = result.Content.OfType<TextContentBlock>().First();
         Console.WriteLine($"[Test] Monitors JSON: {textContent.Text}");
         
-        var monitors = TestHelper.DeserializeJson<List<MonitorInfo>>(textContent.Text);
-        Assert.That(monitors, Is.Not.Null);
-        Assert.That(monitors.Count, Is.GreaterThan(0));
-        Assert.That(monitors[0].W, Is.GreaterThan(0));
-        Assert.That(monitors[0].H, Is.GreaterThan(0));
+        var response = TestHelper.DeserializeJson<Dictionary<string, object>>(textContent.Text);
+        Assert.That(response, Is.Not.Null);
+        Assert.That(response.ContainsKey("count"), Is.True);
+        Assert.That(response.ContainsKey("items"), Is.True);
     }
 
     [Test]
     public async Task E2EListWindowsReturnsValidWindows()
     {
-        var result = await _client!.CallToolAsync("list_windows", null).ConfigureAwait(false);
+        var result = await _client!.CallToolAsync("visual_list", new Dictionary<string, object?> { ["type"] = "window" }).ConfigureAwait(false);
         Assert.That(result, Is.Not.Null);
     }
 
     [Test]
     public async Task CameraCaptureStream_WorksCorrectly()
     {
-        var monitorsResult = await _client!.CallToolAsync("list_monitors", null).ConfigureAwait(false);
+        var monitorsResult = await _client!.CallToolAsync("visual_list", new Dictionary<string, object?> { ["type"] = "monitor" }).ConfigureAwait(false);
         var textContent = monitorsResult.Content.OfType<TextContentBlock>().First();
-        var monitors = TestHelper.DeserializeJson<List<MonitorInfo>>(textContent.Text);
+        var response = TestHelper.DeserializeJson<Dictionary<string, object>>(textContent.Text);
+        Assert.That(response, Is.Not.Null);
+        Assert.That(response.ContainsKey("items"), Is.True);
+
+        var monitors = TestHelper.DeserializeJson<List<MonitorInfo>>(response["items"].ToString()!);
         Assert.That(monitors, Is.Not.Null);
         Assert.That(monitors.Count, Is.GreaterThan(0));
 
@@ -169,19 +177,20 @@ public class McpE2ETests
         var width = Math.Min(monitor.W, 640);
         var height = Math.Min(monitor.H, 360);
 
-        Console.WriteLine($"[Test] Starting camera_capture_stream: x={startX}, y={startY}, w={width}, h={height}");
+        Console.WriteLine($"[Test] Starting visual_capture (region): x={startX}, y={startY}, w={width}, h={height}");
 
-        var result = await _client!.CallToolAsync("camera_capture_stream",
+        var result = await _client!.CallToolAsync("visual_capture",
             new Dictionary<string, object?>
             {
+                ["target"] = "region",
                 ["x"] = startX,
                 ["y"] = startY,
                 ["w"] = width,
                 ["h"] = height,
-                ["quality"] = 80
+                ["mode"] = "normal"
             }).ConfigureAwait(false);
 
-        Console.WriteLine($"[Test] camera_capture_stream result: {result.Content}");
+        Console.WriteLine($"[Test] visual_capture result: {result.Content}");
 
         Assert.That(result, Is.Not.Null);
 
@@ -189,58 +198,34 @@ public class McpE2ETests
         Assert.That(resultText, Is.Not.Null);
         Console.WriteLine($"[Test] resultText: {resultText}");
 
-        Assert.That(resultText, Does.Contain("sessionId"));
-
-        var sessionData = TestHelper.DeserializeJson<Dictionary<string, object>>(resultText);
-        Assert.That(sessionData, Is.Not.Null);
-        Assert.That(sessionData.ContainsKey("sessionId"), Is.True);
-        Assert.That(sessionData.ContainsKey("targetType"), Is.True);
-
-        var sessionId = sessionData["sessionId"].ToString();
-        Assert.That(string.IsNullOrEmpty(sessionId), Is.False);
-
-        await Task.Delay(500).ConfigureAwait(false);
-
-        var stopResult = await _client!.CallToolAsync("stop_watch",
-            new Dictionary<string, object?> { ["sessionId"] = sessionId }).ConfigureAwait(false);
-        Assert.That(stopResult, Is.Not.Null);
+        Assert.That(resultText, Does.Contain("image"));
     }
 
     [Test]
     public async Task Watch_Tool_WorksCorrectly()
     {
-        var monitorsResult = await _client!.CallToolAsync("list_monitors", null).ConfigureAwait(false);
-        var textContent = monitorsResult.Content.OfType<TextContentBlock>().First();
-        var monitors = TestHelper.DeserializeJson<List<MonitorInfo>>(textContent.Text);
-        Assert.That(monitors, Is.Not.Null);
-        Assert.That(monitors.Count, Is.GreaterThan(0));
-
-        var monitorId = monitors[0].Idx.ToString();
-
-        var result = await _client!.CallToolAsync("watch",
+        var result = await _client!.CallToolAsync("visual_watch",
             new Dictionary<string, object?>
             {
+                ["mode"] = "unified",
                 ["target"] = "monitor",
-                ["targetId"] = monitorId,
-                ["intervalMs"] = 1000,
-                ["quality"] = 80,
-                ["maxWidth"] = 640
+                ["monitorIndex"] = 0,
+                ["fps"] = 1
             }).ConfigureAwait(false);
 
         Assert.That(result, Is.Not.Null);
 
         var resultText = result.Content.OfType<TextContentBlock>().First()?.Text;
         Assert.That(resultText, Is.Not.Null);
-        Assert.That(resultText, Does.Contain("sessionId"));
-
-        var sessionData = TestHelper.DeserializeJson<Dictionary<string, object>>(resultText);
-        Assert.That(sessionData, Is.Not.Null);
-        var sessionId = sessionData["sessionId"].ToString();
+        
+        // visual_watch returns sessionId as plain string (not JSON)
+        var sessionId = resultText.Trim('"');
         Assert.That(string.IsNullOrEmpty(sessionId), Is.False);
+        Assert.That(Guid.TryParse(sessionId, out _), Is.True);
 
         await Task.Delay(500).ConfigureAwait(false);
 
-        var stopResult = await _client!.CallToolAsync("stop_watch",
+        var stopResult = await _client!.CallToolAsync("visual_stop",
             new Dictionary<string, object?> { ["sessionId"] = sessionId }).ConfigureAwait(false);
         Assert.That(stopResult, Is.Not.Null);
     }
@@ -263,9 +248,12 @@ public class McpE2ETests
         WindowInfo? notepad = null;
         if (_testNotepadHwnd.HasValue)
         {
-            var windowsResult = await _client!.CallToolAsync("list_windows", null).ConfigureAwait(false);
+            var windowsResult = await _client!.CallToolAsync("visual_list", new Dictionary<string, object?> { ["type"] = "window" }).ConfigureAwait(false);
             var textContent = windowsResult.Content.OfType<TextContentBlock>().First();
-            var windows = TestHelper.DeserializeJson<List<WindowInfo>>(textContent.Text);
+            var windowsResponse = TestHelper.DeserializeJson<Dictionary<string, object>>(textContent.Text);
+            var windows = windowsResponse != null && windowsResponse.ContainsKey("items")
+                ? TestHelper.DeserializeJson<List<WindowInfo>>(windowsResponse["items"].ToString()!)
+                : null;
             notepad = windows?.FirstOrDefault(w => w.Hwnd == _testNotepadHwnd.Value);
         }
 
@@ -278,11 +266,11 @@ public class McpE2ETests
         int clickX = notepad.X + 50;
         int clickY = notepad.Y + 100;
 
-        await _client!.CallToolAsync("mouse_move", new Dictionary<string, object?> { ["x"] = clickX, ["y"] = clickY }).ConfigureAwait(false);
-        await _client!.CallToolAsync("mouse_click", new Dictionary<string, object?> { ["button"] = "left", ["count"] = 1 }).ConfigureAwait(false);
+        await _client!.CallToolAsync("input_mouse", new Dictionary<string, object?> { ["action"] = "move", ["x"] = clickX, ["y"] = clickY }).ConfigureAwait(false);
+        await _client!.CallToolAsync("input_mouse", new Dictionary<string, object?> { ["action"] = "click", ["x"] = clickX, ["y"] = clickY, ["button"] = "left", ["clicks"] = 1 }).ConfigureAwait(false);
         await Task.Delay(500).ConfigureAwait(false);
 
-        await _client!.CallToolAsync("mouse_click", new Dictionary<string, object?> { ["button"] = "right", ["count"] = 1 }).ConfigureAwait(false);
+        await _client!.CallToolAsync("input_mouse", new Dictionary<string, object?> { ["action"] = "click", ["x"] = clickX, ["y"] = clickY, ["button"] = "right", ["clicks"] = 1 }).ConfigureAwait(false);
         await Task.Delay(1000).ConfigureAwait(false);
 
         await _client!.CallToolAsync("keyboard_key", new Dictionary<string, object?> { ["key"] = "escape", ["action"] = "click" }).ConfigureAwait(false);

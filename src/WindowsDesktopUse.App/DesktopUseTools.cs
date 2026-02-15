@@ -12,7 +12,7 @@ using WindowsDesktopUse.Transcription;
 namespace WindowsDesktopUse.App;
 
 [McpServerToolType]
-public static class DesktopUseTools
+public class DesktopUseTools
 {
     private static ScreenCaptureService? _capture;
     private static AudioCaptureService? _audioCapture;
@@ -62,14 +62,14 @@ public static class DesktopUseTools
 
     // ============ SCREEN CAPTURE TOOLS ============
 
-    [McpServerTool, Description("List all available monitors/displays with their index, name, resolution, and position")]
+    // [McpServerTool removed for v2.0 - use unified tools]
     public static IReadOnlyList<MonitorInfo> ListMonitors()
     {
         if (_capture == null) throw new InvalidOperationException("ScreenCaptureService not initialized");
         return _capture.GetMonitors();
     }
 
-    [McpServerTool, Description("List all visible windows with their handles, titles, and dimensions")]
+    // [McpServerTool removed for v2.0 - use unified tools]
     public static IReadOnlyList<WindowInfo> ListWindows()
     {
         if (_capture == null) throw new InvalidOperationException("ScreenCaptureService not initialized");
@@ -80,7 +80,7 @@ public static class DesktopUseTools
     /// Captures a screenshot of specified monitor or window.
     /// Accepts hwnd as string (e.g. "655936") for robustness against JSON number/string ambiguity.
     /// </summary>
-    [McpServerTool, Description("Capture a screenshot of specified monitor or window. Returns the captured image as base64 JPEG.")]
+    // [McpServerTool removed for v2.0 - use unified tools]
     public static ImageContentBlock See(
         [Description("Target type: 'monitor' or 'window'")] string targetType = "monitor",
         [Description("Monitor index (0=primary) - used when targetType='monitor'")] uint monitor = 0,
@@ -111,7 +111,7 @@ public static class DesktopUseTools
         };
     }
 
-    [McpServerTool, Description("Capture a screenshot of a specific window by its handle (HWND)")]
+    // [McpServerTool removed for v2.0 - use unified tools]
     public static ImageContentBlock CaptureWindow(
         [Description("Window handle (HWND) to capture")] long hwnd,
         [Description("JPEG quality (1-100)")] int quality = 80,
@@ -129,7 +129,7 @@ public static class DesktopUseTools
         };
     }
 
-    [McpServerTool, Description("Capture a screenshot of a specific screen region")]
+    // [McpServerTool removed for v2.0 - use unified tools]
     public static ImageContentBlock CaptureRegion(
         [Description("X coordinate")] int x,
         [Description("Y coordinate")] int y,
@@ -150,7 +150,7 @@ public static class DesktopUseTools
         };
     }
 
-    [McpServerTool, Description("Start RTSP-like streaming of a screen region (640x360@15fps, wifi-cam-mcp compatible). Returns session ID.")]
+    // [McpServerTool removed for v2.0 - use unified tools]
     public static WatchSession CameraCaptureStream(
         McpServer server,
         [Description("X coordinate of region")] int x,
@@ -206,7 +206,7 @@ public static class DesktopUseTools
     /// Starts a continuous screen capture stream.
     /// Accepts hwnd as string for compatibility with JSON clients that serialize numbers as strings.
     /// </summary>
-    [McpServerTool, Description("Start a continuous screen capture stream")]
+    // [McpServerTool removed for v2.0 - use unified tools]
     public static string StartWatching(
         McpServer server,
         [Description("Target type: 'monitor' or 'window'")] string targetType = "monitor",
@@ -248,7 +248,7 @@ public static class DesktopUseTools
         return _capture.StartStream(monitor, intervalMs, quality, maxWidth);
     }
 
-    [McpServerTool, Description("Stop a running screen capture stream")]
+    // [McpServerTool removed for v2.0 - use unified tools]
     public static string StopWatching(
         [Description("The session ID returned by start_watching")] string sessionId)
     {
@@ -257,7 +257,7 @@ public static class DesktopUseTools
         return "Stopped watching";
     }
 
-    [McpServerTool, Description("Get the latest captured frame from a stream session")]
+    // [McpServerTool removed for v2.0 - use unified tools]
     public static object GetLatestFrame(
         [Description("The session ID")] string sessionId)
     {
@@ -297,7 +297,7 @@ public static class DesktopUseTools
 
     // ============ UNIFIED TOOLS ============
 
-    [McpServerTool, Description("List all available capture targets (monitors and windows)")]
+    // [McpServerTool removed for v2.0 - use unified tools]
     public static CaptureTargets ListAll(
         [Description("Filter: 'all', 'monitors', 'windows'")] string filter = "all")
     {
@@ -337,7 +337,7 @@ public static class DesktopUseTools
         return new CaptureTargets(monitors, windows, monitors.Count + windows.Count);
     }
 
-    [McpServerTool, Description("Capture screen, window, or region as image")]
+    // [McpServerTool removed for v2.0 - use unified tools]
     public static CaptureResult Capture(
         [Description("Target type: 'monitor', 'window', 'region', 'primary'")] CaptureTargetType target = CaptureTargetType.Primary,
         [Description("Target identifier")] string? targetId = null,
@@ -408,7 +408,7 @@ public static class DesktopUseTools
         );
     }
 
-    [McpServerTool, Description("Start watching/streaming a target")]
+    // [McpServerTool removed for v2.0 - use unified tools]
     public static WatchSession Watch(
         McpServer server,
         [Description("Target type: 'monitor', 'window'")] CaptureTargetType target = CaptureTargetType.Monitor,
@@ -467,7 +467,7 @@ public static class DesktopUseTools
         return new WatchSession(sessionId, target.ToString(), actualTargetId, intervalMs, "active");
     }
 
-    [McpServerTool, Description("Stop watching a capture session")]
+    // [McpServerTool removed for v2.0 - use unified tools]
     public static string StopWatch(
         [Description("The session ID")] string sessionId)
     {
@@ -478,7 +478,7 @@ public static class DesktopUseTools
 
     // ============ AUDIO CAPTURE TOOLS ============
 
-    [McpServerTool, Description("List available audio capture devices")]
+    // [McpServerTool removed for v2.0 - use unified tools]
     public static IReadOnlyList<AudioDeviceInfo> ListAudioDevices()
     {
         return AudioCaptureService.GetAudioDevices();
@@ -500,7 +500,7 @@ public static class DesktopUseTools
         return _audioCapture.StartCapture(sourceEnum, sampleRate, deviceIndex);
     }
 
-    [McpServerTool, Description("Stop audio capture and return captured audio")]
+    // [McpServerTool removed for v2.0 - use unified tools]
     public static async Task<AudioCaptureResult> StopAudioCapture(
         [Description("Session ID")] string sessionId,
         [Description("Return format: 'base64', 'file_path'")] string returnFormat = "base64")
@@ -513,7 +513,7 @@ public static class DesktopUseTools
         return await _audioCapture.StopCaptureAsync(sessionId, returnFormat == "base64").ConfigureAwait(false);
     }
 
-    [McpServerTool, Description("Get list of active audio capture sessions")]
+    // [McpServerTool removed for v2.0 - use unified tools]
     public static IReadOnlyList<AudioSession> GetActiveAudioSessions()
     {
         return _audioCapture?.GetActiveSessions() ?? new List<AudioSession>();
@@ -521,7 +521,7 @@ public static class DesktopUseTools
 
     // ============ WHISPER SPEECH RECOGNITION TOOLS ============
 
-    [McpServerTool, Description("Transcribe audio to text using Whisper AI")]
+    // [McpServerTool removed for v2.0 - use unified tools]
     public static async Task<TranscriptionResult> Listen(
         [Description("Source: 'microphone', 'system', 'file', 'audio_session'")] AudioSourceType source = AudioSourceType.System,
         [Description("Source ID")] string? sourceId = null,
@@ -628,7 +628,7 @@ public static class DesktopUseTools
         }
     }
 
-    [McpServerTool, Description("Get available Whisper model information")]
+    // [McpServerTool removed for v2.0 - use unified tools]
     public static Dictionary<string, object> GetWhisperModelInfo()
     {
         var models = WhisperTranscriptionService.GetModelInfo();
@@ -649,7 +649,7 @@ public static class DesktopUseTools
 
     // ============ INPUT TOOLS ============
 
-    [McpServerTool, Description("Move mouse cursor to absolute position")]
+    // [McpServerTool removed for v2.0 - use unified tools]
     public static void MouseMove(
         [Description("X coordinate")] int x,
         [Description("Y coordinate")] int y)
@@ -658,7 +658,7 @@ public static class DesktopUseTools
         InputService.MoveMouse(x, y);
     }
 
-    [McpServerTool, Description("Click mouse button")]
+    // [McpServerTool removed for v2.0 - use unified tools]
     public static void MouseClick(
         [Description("Button: 'left', 'right', 'middle'")] MouseButtonName button = MouseButtonName.Left,
         [Description("Click count")] int count = 1)
@@ -677,7 +677,7 @@ public static class DesktopUseTools
         InputService.ClickMouseAsync(mouseButton, count).GetAwaiter().GetResult();
     }
 
-    [McpServerTool, Description("Drag mouse from start to end position")]
+    // [McpServerTool removed for v2.0 - use unified tools]
     public static void MouseDrag(
         [Description("Start X")] int startX,
         [Description("Start Y")] int startY,
@@ -688,7 +688,7 @@ public static class DesktopUseTools
         InputService.DragMouseAsync(startX, startY, endX, endY).GetAwaiter().GetResult();
     }
 
-    [McpServerTool, Description("Press a navigation key (security restricted)")]
+    [McpServerTool, Description("Press or release keyboard keys. Replaces: keyboard_type, press_key.")]
     public static void KeyboardKey(
         [Description("Key name: enter, tab, escape, space, backspace, delete, left, up, right, down, home, end, pageup, pagedown")] string key,
         [Description("Action: 'press', 'release', 'click'")] KeyActionType action = KeyActionType.Click)
@@ -730,7 +730,7 @@ public static class DesktopUseTools
     /// Closes a window by its handle (HWND).
     /// Accepts hwnd as string for compatibility with JSON clients that serialize numbers as strings.
     /// </summary>
-    [McpServerTool, Description("Close a window by its handle (HWND)")]
+    // [McpServerTool removed for v2.0 - use unified tools]
     public static void CloseWindow(
         [Description("Window handle (HWND) as string or number to close")] string hwndStr)
     {
@@ -746,7 +746,7 @@ public static class DesktopUseTools
     /// Starts a high-efficiency video capture stream for LLM consumption.
     /// Optimized for low-latency, low-token visual information delivery.
     /// </summary>
-    [McpServerTool, Description("Start a high-efficiency video capture stream for LLM consumption. Optimized for video content like YouTube, Netflix, etc. CRITICAL: This tool returns large base64 data. To avoid token overflow, you MUST extract metadata, analyze the image briefly, and IMMEDIATELY discard the base64 data. Do NOT store it in your context.")]
+    // [McpServerTool removed for v2.0 - use unified tools]
     public static async Task<string> WatchVideo(
         McpServer server,
         [Description("Target name: 'YouTube', 'Netflix', 'ActiveWindow', or window title substring")] string targetName = "ActiveWindow",
@@ -808,7 +808,7 @@ public static class DesktopUseTools
         }
     }
 
-    [McpServerTool, Description("Stop a running video capture stream")]
+    // [McpServerTool removed for v2.0 - use unified tools]
     public static string StopWatchVideo(
         [Description("The session ID returned by watch_video")] string sessionId)
     {
@@ -819,7 +819,7 @@ public static class DesktopUseTools
         return $"Stopped video stream {sessionId}";
     }
 
-    [McpServerTool, Description("Get the latest video frame from a stream session. CRITICAL: This tool returns large base64 data. To avoid token overflow, you MUST extract metadata, analyze the image briefly, and IMMEDIATELY discard the base64 data. Do NOT store it in your context.")]
+    // [McpServerTool removed for v2.0 - use unified tools]
     public static object GetLatestVideoFrame(
         [Description("The session ID")] string sessionId)
     {
@@ -867,7 +867,7 @@ public static class DesktopUseTools
     /// Prototype tool for unified video and audio capture with synchronized timeline.
     /// Combines camera_capture_stream and Listen functionality with RelativeTime.
     /// </summary>
-    [McpServerTool, Description("[PROTOTYPE v1] Start unified video/audio capture with synchronized timeline. Combines visual and audio streams with RelativeTime for LLM consumption.")]
+    // [McpServerTool removed for v2.0 - use unified tools]
     public static async Task<string> WatchVideoV1(
         McpServer server,
         [Description("X coordinate of capture region")] int x,
@@ -1019,7 +1019,7 @@ public static class DesktopUseTools
         }
     }
 
-    [McpServerTool, Description("[PROTOTYPE v1] Stop unified video/audio capture stream")]
+    // [McpServerTool removed for v2.0 - use unified tools]
     public static string StopWatchVideoV1(
         [Description("The session ID returned by watch_video_v1")] string sessionId)
     {
@@ -1044,13 +1044,18 @@ public static class DesktopUseTools
     /// <summary>
     /// Read text from a window using UI Automation and return as Markdown
     /// </summary>
-    [McpServerTool, Description("Extract structured text from a window using UI Automation. Returns Markdown-formatted text.")]
+    [McpServerTool, Description("Read text content from a window using UI Automation. Replaces: read_window_text_v2.")]
     public static string ReadWindowText(
-        [Description("Window handle (HWND)")] long hwnd,
+        [Description("Window handle (HWND) as string")] string hwndStr,
         [Description("Include buttons in output")] bool includeButtons = false)
     {
         if (_accessibilityService == null)
             throw new InvalidOperationException("AccessibilityService not initialized");
+
+        if (!long.TryParse(hwndStr, out var hwnd))
+        {
+            throw new ArgumentException($"Invalid HWND format: '{hwndStr}'. Expected numeric string.");
+        }
 
         Console.Error.WriteLine($"[ReadWindowText] Extracting text from window: {hwnd}");
 
@@ -1067,7 +1072,7 @@ public static class DesktopUseTools
     /// <summary>
     /// Monitor a window for visual changes and send notifications
     /// </summary>
-    [McpServerTool, Description("Monitor a window for visual changes. Sends MCP notifications when changes are detected.")]
+    // [McpServerTool removed for v2.0 - use unified tools]
     public static async Task<string> Monitor(
         McpServer server,
         [Description("Window handle (HWND)")] long hwnd,
@@ -1196,7 +1201,7 @@ public static class DesktopUseTools
     /// <summary>
     /// Stop monitoring a window
     /// </summary>
-    [McpServerTool, Description("Stop monitoring a window")]
+    // [McpServerTool removed for v2.0 - use unified tools]
     public static string StopMonitor(
         [Description("The session ID returned by monitor")] string sessionId)
     {
@@ -1229,7 +1234,7 @@ public static class DesktopUseTools
     /// <summary>
     /// Start synchronized video/audio capture for co-viewing experience
     /// </summary>
-    [McpServerTool, Description("Start synchronized video and audio capture for co-viewing. Captures frames and transcribes audio with synchronized timestamps. CRITICAL: This tool returns large base64 data. To avoid token overflow, you MUST extract metadata, analyze the image briefly, and IMMEDIATELY discard the base64 data. Do NOT store it in your context.")]
+    // [McpServerTool removed for v2.0 - use unified tools]
     public static async Task<string> WatchVideoV2(
         McpServer server,
         [Description("X coordinate of capture region")] int x,
@@ -1416,7 +1421,7 @@ public static class DesktopUseTools
     /// <summary>
     /// Stop video co-view session
     /// </summary>
-    [McpServerTool, Description("Stop video co-view capture session")]
+    // [McpServerTool removed for v2.0 - use unified tools]
     public static string StopWatchVideoV2(
         [Description("The session ID returned by watch_video_v2")] string sessionId)
     {
@@ -1484,7 +1489,7 @@ public static class DesktopUseTools
     /// <summary>
     /// Unified tool to list visual targets (monitors, windows, or all)
     /// </summary>
-    [McpServerTool, Description("List visual targets (monitors, windows, or all). Replaces: list_monitors, list_windows, list_all.")]
+    [McpServerTool, Description("List monitors or windows. Replaces: list_monitors, list_windows.")]
     public static object VisualList(
         [Description("Target type: 'monitor', 'window', or 'all' (default)")] string type = "all",
         [Description("Filter by title (for windows)")] string? filter = null)
@@ -1532,7 +1537,7 @@ public static class DesktopUseTools
     public static async Task<object> VisualCapture(
         [Description("Target type: 'monitor', 'window', 'region', or 'primary' (default)")] string target = "primary",
         [Description("Monitor index (for 'monitor' type)")] uint monitorIndex = 0,
-        [Description("Window handle (for 'window' type)")] long? hwnd = null,
+        [Description("Window handle (for 'window' type) as string")] string hwnd = null,
         [Description("Region X (for 'region' type)")] int x = 0,
         [Description("Region Y (for 'region' type)")] int y = 0,
         [Description("Region width (for 'region' type)")] int w = 640,
@@ -1555,9 +1560,11 @@ public static class DesktopUseTools
                 break;
 
             case "window":
-                if (!hwnd.HasValue)
+                if (string.IsNullOrWhiteSpace(hwnd))
                     throw new ArgumentException("hwnd is required for window capture");
-                imageData = ScreenCaptureService.CaptureWindow(hwnd.Value, maxWidth, quality);
+                if (!long.TryParse(hwnd, out var hwndValue))
+                    throw new ArgumentException($"Invalid HWND format: '{hwnd}'. Expected numeric string.");
+                imageData = ScreenCaptureService.CaptureWindow(hwndValue, maxWidth, quality);
                 break;
 
             case "region":
@@ -1599,7 +1606,7 @@ public static class DesktopUseTools
         [Description("Watch mode: 'video', 'monitor', or 'unified' (default: video)")] string mode = "video",
         [Description("Target type: 'monitor', 'window', or 'region'")] string target = "monitor",
         [Description("Monitor index (for 'monitor' type)")] uint monitorIndex = 0,
-        [Description("Window handle (for 'window' type)")] long? hwnd = null,
+        [Description("Window handle (for 'window' type) as string")] string hwnd = null,
         [Description("Region X (for 'region' type)")] int x = 0,
         [Description("Region Y (for 'region' type)")] int y = 0,
         [Description("Region width (for 'region' type)")] int w = 640,
@@ -1652,8 +1659,13 @@ public static class DesktopUseTools
                     switch (target.ToLowerInvariant())
                     {
                         case "window":
-                            if (!hwnd.HasValue) continue;
-                            imageData = ScreenCaptureService.CaptureWindow(hwnd.Value, 640, quality);
+                            if (string.IsNullOrWhiteSpace(hwnd)) continue;
+                            if (!long.TryParse(hwnd, out var hwndValue))
+                            {
+                                Console.Error.WriteLine($"[VisualWatch] Invalid HWND format: '{hwnd}'");
+                                continue;
+                            }
+                            imageData = ScreenCaptureService.CaptureWindow(hwndValue, 640, quality);
                             break;
                         case "region":
                             imageData = ScreenCaptureService.CaptureRegion(x, y, w, h, 640, quality);
@@ -1712,7 +1724,7 @@ public static class DesktopUseTools
     /// <summary>
     /// Unified tool to stop any visual or input session
     /// </summary>
-    [McpServerTool, Description("Stop any active session (visual or input). Replaces all stop_* tools.")]
+    [McpServerTool, Description("Stop any active session by ID or type. Replaces: stop_capture, stop_watch, stop_monitor.")]
     public static string VisualStop(
         [Description("Session ID to stop")] string sessionId,
         [Description("Stop all sessions of this type: 'watch', 'capture', 'audio', 'monitor', or 'all' (default)")] string type = "all")
@@ -1745,7 +1757,7 @@ public static class DesktopUseTools
     /// <summary>
     /// Unified tool for mouse operations
     /// </summary>
-    [McpServerTool, Description("Perform mouse operations (move, click, drag). Replaces: mouse_move, mouse_click, mouse_drag.")]
+    [McpServerTool, Description("Perform mouse operations (move, click, drag). Replaces: mouse_move, mouse_click.")]
     public static string InputMouse(
         [Description("Mouse action: 'move', 'click', or 'drag'")] string action,
         [Description("X coordinate")] int x,
@@ -1792,29 +1804,34 @@ public static class DesktopUseTools
     /// </summary>
     [McpServerTool, Description("Perform window operations (close, minimize, maximize, restore). Replaces: close_window.")]
     public static string InputWindow(
-        [Description("Window handle (HWND)")] long hwnd,
+        [Description("Window handle (HWND) as string")] string hwnd,
         [Description("Window action: 'close' (default), 'minimize', 'maximize', or 'restore'")] string action = "close")
     {
+        if (string.IsNullOrWhiteSpace(hwnd))
+            throw new ArgumentException("hwnd is required");
+        if (!long.TryParse(hwnd, out var hwndValue))
+            throw new ArgumentException($"Invalid HWND format: '{hwnd}'. Expected numeric string.");
+        
         var actionType = Enum.TryParse<WindowActionType>(action, true, out var parsed) ? parsed : WindowActionType.Close;
-        var windowHandle = new IntPtr(hwnd);
+        var windowHandle = new IntPtr(hwndValue);
 
         switch (actionType)
         {
             case WindowActionType.Close:
                 InputService.TerminateWindowProcess(windowHandle);
-                return $"Window {hwnd} closed";
+                return $"Window {hwndValue} closed";
 
             case WindowActionType.Minimize:
                 InputService.MinimizeWindow(windowHandle);
-                return $"Window {hwnd} minimized";
+                return $"Window {hwndValue} minimized";
 
             case WindowActionType.Maximize:
                 InputService.MaximizeWindow(windowHandle);
-                return $"Window {hwnd} maximized";
+                return $"Window {hwndValue} maximized";
 
             case WindowActionType.Restore:
                 InputService.RestoreWindow(windowHandle);
-                return $"Window {hwnd} restored";
+                return $"Window {hwndValue} restored";
 
             default:
                 throw new ArgumentException($"Unknown action: {action}");
