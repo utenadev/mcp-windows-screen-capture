@@ -1,160 +1,85 @@
-# windows-desktop-use-mcp ツール詳細
+# MCP ツールリファレンス
 
-このドキュメントでは，本サーバーで利用可能な MCP ツールの詳細について説明します。
-
-## ツール一覧
-
-| カテゴリ | ツール名 | 説明 |
-|----------|----------|------|
-| **視覚** | `visual_list` | モニター，ウィンドウ，またはすべてを一覧表示 |
-| | `visual_capture` | モニター，ウィンドウ，または領域をキャプチャ |
-| | `visual_watch` | 継続的な監視・ストリーミング |
-| | `visual_stop` | アクティブなセッションを停止 |
-| **聴覚** | `listen` | システム音やマイクを録音・文字起こし |
-| **操作** | `input_mouse` | マウス操作（移動，クリック，ドラッグ） |
-| | `input_window` | ウィンドウ操作（閉じる，最小化，最大化，復元） |
-| | `keyboard_key` | ナビゲーションキー操作（セキュリティ制限あり） |
-| **補助** | `read_window_text` | ウィンドウのテキストを Markdown で抽出 |
+このドキュメントでは、`windows-desktop-use-mcp` が提供する 9 つの統合ツールの詳細について説明します。
 
 ---
 
-## 視覚ツール
+## 1. 視覚系ツール (Visual)
 
 ### `visual_list`
-
-モニター，ウィンドウ，またはすべての視覚ターゲットを一覧表示します。
-
+利用可能なキャプチャターゲット（モニターおよびウィンドウ）を一覧表示します。
 - **引数:**
-  - `type` (string): "monitor"，"window"，または "all"（デフォルト: "all"）
-
-- **戻り値:**
-  - `count`: アイテム数
-  - `items`: モニターまたはウィンドウの配列
+  - `type` (string): "all", "monitor", "window" (デフォルト: "all")
+  - `filter` (string): ウィンドウタイトルで絞り込むキーワード
+- **戻り値:** `{ type, monitors, windows }` オブジェクト
 
 ### `visual_capture`
-
-モニター，ウィンドウ，または領域のスクリーンショットを撮影します。
-
+特定のターゲットのスクリーンショットを取得します。
 - **引数:**
-  - `target` (string): "monitor"，"window"，"region"，または "primary"（デフォルト: "primary"）
-  - `monitorIndex` (number): "monitor" 用のモニター番号
-  - `hwnd` (string): "window" 用のウィンドウハンドル
-  - `x`, `y`, `w`, `h` (number): "region" 用の座標
-  - `mode` (string): "normal"（品質30）または "detailed"（品質70）
-  - `quality` (number): JPEG 品質 1-100（デフォルト: 30 または 70）
-
-- **戻り値:**
-  - Base64 エンコードされた画像データ
+  - `target` (string): "primary", "monitor", "window", "region" (デフォルト: "primary")
+  - `hwnd` (string): ウィンドウハンドル（target="window" の場合に必須）
+  - `monitorIndex` (number): モニター番号
+  - `x, y, w, h` (number): 領域指定（target="region" の場合に必須）
+  - `mode` (string): "normal" (低画質・節約), "detailed" (高画質・詳細解析)
+  - `maxWidth` (number): リサイズ後の最大幅 (デフォルト: 640)
+- **戻り値:** 画像データ (Base64) と LLM 向け処理指示
 
 ### `visual_watch`
-
-視覚ターゲットの継続的な監視またはストリーミングを開始します。
-
+継続的な監視やストリーミングを開始します。
 - **引数:**
-  - `mode` (string): "video"，"monitor"，または "unified"（デフォルト: "video"）
-  - `target` (string): "monitor"，"window"，または "region"
-  - `monitorIndex` (number): モニター番号
-  - `hwnd` (string): ウィンドウハンドル
-  - `x`, `y`, `w`, `h` (number): 領域座標
-  - `fps` (number): 1秒あたりのフレーム数 1-30（デフォルト: 5）
-  - `detectChanges` (boolean): 変化検出を有効化（デフォルト: true）
-  - `threshold` (number): 変化閾値 0.05-0.20（デフォルト: 0.08）
-
-- **戻り値:**
-  - `sessionId`: 監視セッションの ID
+  - `mode` (string): "video", "monitor", "unified" (デフォルト: "video")
+  - `target` (string): "monitor", "window", "region"
+  - `hwnd` (string): 対象ウィンドウハンドル
+  - `fps` (number): フレームレート (デフォルト: 5)
+  - `overlay` (boolean): 画像にタイムコード等を焼き込むか (デフォルト: false)
+  - `context` (boolean): AI 向け文脈プロンプトを生成するか (デフォルト: false)
+- **戻り値:** セッション ID
 
 ### `visual_stop`
-
-アクティブな視覚または入力セッションを停止します。
-
+実行中の監視やストリーミングセッションを停止します。
 - **引数:**
-  - `sessionId` (string): 停止するセッション ID（省略可能）
-  - `type` (string): "watch"，"capture"，"audio"，"monitor"，または "all"（デフォルト: "all"）
-
-- **戻り値:**
-  - 確認メッセージ
+  - `sessionId` (string): 停止するセッションの ID
+  - `type` (string): 全停止する場合は "all" を指定
 
 ---
 
-## 聴覚ツール
-
-### `listen`
-
-システム音やマイクを録音し，Whisper AI で文字起こしを行います。
-
-- **引数:**
-  - `source` (string): "system"，"microphone"，"file"，または "audio_session"（デフォルト: "system"）
-  - `sourceId` (string): ファイルパスまたはオーディオセッション ID
-  - `duration` (number): 録音秒数（デフォルト: 10）
-  - `language` (string): "auto" または言語コード "ja"，"en"，"zh" 等（デフォルト: "auto"）
-  - `modelSize` (string): "tiny"，"base"，"small"，"medium"，"large"（デフォルト: "base"）
-  - `translate` (boolean): 英語に翻訳するかどうか（デフォルト: false）
-
-- **戻り値:**
-  - 文字起こしテキスト
-
----
-
-## 操作ツール
+## 2. 操作系ツール (Input)
 
 ### `input_mouse`
-
-マウス操作を行います。
-
+マウス操作（移動、クリック、ドラッグ）を実行します。
 - **引数:**
-  - `action` (string): "move"，"click"，"drag"，または "scroll"
-  - `x`, `y` (number): 対象座標
-  - `button` (string): "left"，"right"，または "middle"（デフォルト: "left"）
-  - `clicks` (number): クリック回数（デフォルト: 1）
-  - `delta` (number): "scroll" 操作のスクロール量
-
-- **戻り値:**
-  - 確認メッセージ
+  - `action` (string): "move", "click", "drag"
+  - `x, y` (number): 操作座標
+  - `endX, endY` (number): ドラッグの終了座標
+  - `button` (string): "left", "right", "middle"
+  - `clicks` (number): クリック回数（2 でダブルクリック）
 
 ### `input_window`
-
-ウィンドウ操作を行います。
-
+ウィンドウの状態を制御します。
 - **引数:**
-  - `hwnd` (string): ウィンドウハンドル
-  - `action` (string): "close"，"minimize"，"maximize"，"restore"，"activate"，または "focus"
+  - `hwnd` (string): 対象ウィンドウハンドル
+  - `action` (string): "close", "minimize", "maximize", "restore"
 
-- **戻り値:**
-  - 確認メッセージ
-
-### `keyboard_key`（セキュリティ制限あり）
-
-ナビゲーションキーのみを操作できます。セキュリティ上の理由から，テキスト入力と修飾キー（Ctrl，Alt，Win）はブロックされています。
-
+### `keyboard_key`
+安全なナビゲーションキー操作のみを実行します。
 - **引数:**
-  - `key` (string): ナビゲーションキー名
-    - **許可されるキー:** `enter`，`return`，`tab`，`escape`，`esc`，`space`，`backspace`，`delete`，`del`，`left`，`up`，`right`，`down`，`home`，`end`，`pageup`，`pagedown`
-    - **ブロックされるキー:** `ctrl`，`alt`，`win`，`shift`
-  - `action` (string): "click"，"press"，または "release"（デフォルト: "click"）
-
-- **戻り値:**
-  - 確認メッセージ
+  - `key` (string): `enter`, `tab`, `escape`, `space`, `left`, `right`, `up`, `down`, `pageup`, `pagedown` 等
+  - `action` (string): "click", "press", "release"
 
 ---
 
-## 補助ツール
+## 3. 補助・音声ツール (Utility)
 
 ### `read_window_text`
-
-UI Automation を使用してウィンドウからテキスト内容を抽出します。
-
+UI Automation を使用してウィンドウ内のテキスト構造を抽出します。
 - **引数:**
-  - `hwndStr` (string): ウィンドウハンドル（文字列）
-  - `includeButtons` (boolean): ボタンテキストを含めるかどうか（デフォルト: false）
+  - `hwnd` (string): 対象ウィンドウハンドル
+  - `includeButtons` (boolean): ボタン名を含めるか (デフォルト: false)
+- **戻り値:** Markdown 形式の構造化テキスト
 
-- **戻り値:**
-  - Markdown 形式のテキスト内容
-
----
-
-## HTTP ストリーミング
-
-`visual_watch` では，HTTP 経由でフレームをストリーミングできます:
-
-- **エンドポイント:** `http://localhost:5000/frame/{sessionId}`
-- 最新のフレームを JPEG 画像で返します
+### `listen`
+システム音やマイクを録音し、文字起こしを行います。
+- **引数:**
+  - `duration` (number): 録音秒数 (デフォルト: 10)
+  - `language` (string): 言語コード (例: "ja")
+  - `modelSize` (string): "tiny", "base", "small" (デフォルト: "base")
