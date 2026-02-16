@@ -34,6 +34,7 @@ public sealed class VideoCaptureService : IDisposable
         bool enableChangeDetection = true,
         double changeThreshold = 0.08,
         int keyFrameInterval = 10,
+        bool enableOverlay = false,
         Func<VideoPayload, Task>? onFrameCaptured = null,
         CancellationToken cancellationToken = default)
     {
@@ -50,7 +51,7 @@ public sealed class VideoCaptureService : IDisposable
         }
 
         var sessionId = Guid.NewGuid().ToString();
-        
+
         var session = new VideoSession
         {
             Id = sessionId,
@@ -62,6 +63,7 @@ public sealed class VideoCaptureService : IDisposable
             EnableChangeDetection = enableChangeDetection,
             ChangeThreshold = changeThreshold,
             KeyFrameInterval = keyFrameInterval,
+            EnableOverlay = enableOverlay,
             FrameIntervalMs = 1000 / fps,
             OnFrameCaptured = onFrameCaptured,
             CancellationToken = cancellationToken
@@ -191,8 +193,16 @@ public sealed class VideoCaptureService : IDisposable
                         }
                     }
 
+                    // Apply AI-friendly overlays if enabled (Vision optimization)
+                    if (session.EnableOverlay)
+                    {
+                        var elapsed = DateTime.UtcNow - session.StartTime;
+                        ImageOverlayService.OverlayTimestamp(frame, elapsed);
+                        ImageOverlayService.OverlayEventTag(frame, analysis?.EventTag ?? "Frame");
+                    }
+
                     // Encode frame
-                    var imageData = await Task.Run(() => 
+                    var imageData = await Task.Run(() =>
                         EncodeToJpeg(frame, session.Quality));
 
                     // 実測タイムスタンプ: キャプチャ処理完了直後の時刻を使用
@@ -396,6 +406,7 @@ public sealed class VideoCaptureService : IDisposable
         public double ChangeThreshold { get; set; }
         public int KeyFrameInterval { get; set; }
         public int FrameIntervalMs { get; set; }
+        public bool EnableOverlay { get; set; }
         public Func<VideoPayload, Task>? OnFrameCaptured { get; set; }
         public CancellationToken CancellationToken { get; set; }
         public CancellationTokenSource? CancellationTokenSource { get; set; }
