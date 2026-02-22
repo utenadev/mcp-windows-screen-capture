@@ -7,10 +7,11 @@ It provides AI with "eyes" (vision), "ears" (hearing), and "limbs" (input contro
 
 ## Main Features
 
-- **Vision (Screen Capture)**: Capture monitors, specific windows, or arbitrary regions.
+- **Vision (Screen Capture)**: Capture monitors, specific windows, or arbitrary regions. GPU acceleration supported (enables capture of YouTube/Netflix without black screens).
 - **Hearing (Audio & Transcription)**: Record system audio or microphone, with high-quality local transcription using Whisper AI.
 - **Limbs (Desktop Input)**: Mouse movement, clicking, dragging, and safe navigation key operations (security restricted).
 - **Live Monitoring (Streaming)**: Monitor screen changes in real-time, viewable via HTTP streaming in a browser.
+- **Analysis**: Structural text extraction from windows using UI Automation (Markdown) and AI-optimized visual features.
 
 ## For Non-Developers (Pre-built .exe)
 
@@ -124,13 +125,14 @@ WindowsDesktopUse.exe whisper --list   # Show model list only
 
 ## Documentation Index
 
-- [**Tools Reference**](docs/TOOLS.md) - Detailed command list and usage examples.
-- [**Development Guide**](docs/DEVELOPMENT.md) - Details on build, test, and architecture (DLL structure).
+- [**Tools Reference**](docs/TOOLS.ja.md) - Detailed command list and usage examples (Japanese).
+- [**Development Guide**](docs/DEVELOPMENT.ja.md) - Details on build, test, and architecture (Japanese).
 - [**Whisper AI**](docs/WHISPER.md) - Information about speech recognition features and models.
+- [**Quality Test Report**](docs/quality_test_report.md) - Analysis of information quality differences by quality settings.
 
 ## Requirements
 
-- Windows 11 (or Windows 10 1803+)
+- Windows 11 (or Windows 10 1809+)
 - .NET 8.0 Runtime/SDK
 - High DPI aware (Uses physical pixel coordinates)
 

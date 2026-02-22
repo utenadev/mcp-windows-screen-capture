@@ -45,7 +45,7 @@ graph TD
 ## Building
 
 ### Requirements
-- Windows 11 (or Windows 10 1803+)
+- Windows 11 (or Windows 10 1809+)
 - .NET 8.0 SDK
 
 ### Build Commands

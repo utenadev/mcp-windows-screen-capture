@@ -487,7 +487,8 @@ public class DesktopUseTools
         return AudioCaptureService.GetAudioDevices();
     }
 
-    [McpServerTool, Description("Start audio capture from system or microphone")]
+    // [McpServerTool removed for v2.0 - use unified tools]
+    // This method is kept for internal use only. Use 'listen' tool instead.
     public static AudioSession StartAudioCapture(
         [Description("Source: 'system', 'microphone', 'both'")] string source = "system",
         [Description("Sample rate")] int sampleRate = 44100,
@@ -584,7 +585,7 @@ public class DesktopUseTools
                     var captureSource = source == AudioSourceType.Microphone ? AudioCaptureSource.Microphone : AudioCaptureSource.System;
                     var session = _audioCapture.StartCapture(captureSource, 16000);
 
-                    Console.WriteLine($"[Listen] Recording {(source == AudioSourceType.Microphone ? "microphone" : "system")} audio for {duration} seconds...");
+                    Console.Error.WriteLine($"[Listen] Recording {(source == AudioSourceType.Microphone ? "microphone" : "system")} audio for {duration} seconds...");
                     await Task.Delay(TimeSpan.FromSeconds(duration)).ConfigureAwait(false);
 
                     var capturedAudio = await _audioCapture.StopCaptureAsync(session.SessionId, false).ConfigureAwait(false);
@@ -600,7 +601,7 @@ public class DesktopUseTools
                     throw new ArgumentException($"Unknown source: {source}. Valid values are 'microphone', 'system', 'file', 'audio_session'");
             }
 
-            Console.WriteLine($"[Listen] Transcribing with {modelSize} model...");
+            Console.Error.WriteLine($"[Listen] Transcribing with {modelSize} model...");
             var langCode = language == "auto" ? null : language;
 
             var result = _whisperService.TranscribeFileAsync(
@@ -609,7 +610,7 @@ public class DesktopUseTools
                 modelSizeEnum,
                 translate).GetAwaiter().GetResult();
 
-            Console.WriteLine($"[Listen] Transcription complete: {result.Segments.Count} segments");
+            Console.Error.WriteLine($"[Listen] Transcription complete: {result.Segments.Count} segments");
 
             return result;
         }
@@ -1047,7 +1048,8 @@ public class DesktopUseTools
     /// <summary>
     /// Read text from a window using UI Automation and return as Markdown
     /// </summary>
-    [McpServerTool, Description("Read text content from a window using UI Automation. Replaces: read_window_text_v2.")]
+    [McpServerTool, Description("[Experimental] Read text content from a window using UI Automation. Currently limited to root-level elements only. Replaces: read_window_text_v2.")]
+    public static string ReadWindowText(
     public static string ReadWindowText(
         [Description("Window handle (HWND) as string")] string hwndStr,
         [Description("Include buttons in output")] bool includeButtons = false)

@@ -38,5 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Standardized logging to `Console.Error` to keep `stdout` clean for JSON-RPC.
 - Updated all E2E tests to support the new unified tool schema and JSON response formats.
 
-## [3.0.0] - 2026-02-08
+## [0.3.0] - 2026-02-08
+
+> Note: Version number was reset during v2.0 architecture refactoring.
 ...
