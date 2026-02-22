@@ -71,7 +71,7 @@
   "tool": "visual_capture",
   "params": {
     "target": "window",
-    "hwnd": 123456,
+    "hwnd": "123456",
     "mode": "detailed"
   }
 }
@@ -85,7 +85,7 @@
   "params": {
     "mode": "video",
     "target": "window",
-    "hwnd": 123456,
+    "hwnd": "123456",
     "fps": 5
   }
 }
@@ -150,7 +150,7 @@
 {
   "tool": "input_window",
   "params": {
-    "hwnd": 123456,
+    "hwnd": "123456",
     "action": "close"
   }
 }
@@ -159,7 +159,7 @@
 {
   "tool": "input_window",
   "params": {
-    "hwnd": 123456,
+    "hwnd": "123456",
     "action": "minimize"
   }
 }

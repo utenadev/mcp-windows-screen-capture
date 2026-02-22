@@ -68,7 +68,7 @@ public sealed class ModernCaptureService : ICaptureService, IDisposable
         }
     }
 
-    private Bitmap? CaptureWithPrintWindow(IntPtr hwnd, int width, int height)
+    private static Bitmap? CaptureWithPrintWindow(IntPtr hwnd, int width, int height)
     {
         try
         {
@@ -236,7 +236,7 @@ public sealed class HybridCaptureService : ICaptureService, IDisposable
         };
     }
 
-    private Bitmap CaptureWindowLegacy(IntPtr hwnd)
+    private static Bitmap CaptureWindowLegacy(IntPtr hwnd)
     {
         var hwndLong = hwnd.ToInt64();
         var imageData = ScreenCaptureService.CaptureWindow(hwndLong, 1920, 80);

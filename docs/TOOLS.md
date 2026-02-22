@@ -102,11 +102,10 @@ Record system audio or microphone and transcribe using Whisper AI.
 Perform mouse operations.
 
 - **Arguments:**
-  - `action` (string): "move", "click", "drag", or "scroll"
+  - `action` (string): "move", "click", or "drag"
   - `x`, `y` (number): Target coordinates
   - `button` (string): "left", "right", or "middle" (default: "left")
   - `clicks` (number): Number of clicks (default: 1)
-  - `delta` (number): Scroll amount for "scroll" action
 
 - **Returns:**
   - Confirmation message
@@ -117,7 +116,7 @@ Perform window operations.
 
 - **Arguments:**
   - `hwnd` (string): Window handle
-  - `action` (string): "close", "minimize", "maximize", "restore", "activate", or "focus"
+  - `action` (string): "close", "minimize", "maximize", or "restore"
 
 - **Returns:**
   - Confirmation message

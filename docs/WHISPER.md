@@ -25,4 +25,4 @@ Models are automatically downloaded from Hugging Face on first use.
 
 - **CPU Only**: Currently, this implementation uses the CPU version of Whisper.net.
 - **Japanese Transcription**: The `small` model provides significantly better results for Japanese than the `base` model.
-- **Long Audio**: For audio longer than 30 seconds, consider using `start_audio_capture` followed by `listen` with the `audio_session` source.
+- **Long Audio**: For audio longer than 30 seconds, use the `listen` tool directly with longer duration parameter.

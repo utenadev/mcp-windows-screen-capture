@@ -137,7 +137,7 @@ public sealed class VideoTargetFinder : IDisposable
         }
     }
 
-    private List<VideoTargetInfo> SearchVideoElements()
+    private static List<VideoTargetInfo> SearchVideoElements()
     {
         var results = new List<VideoTargetInfo>();
         
@@ -183,7 +183,7 @@ public sealed class VideoTargetFinder : IDisposable
         return results;
     }
 
-    private VideoTargetInfo? FindActiveWindowVideo()
+    private static VideoTargetInfo? FindActiveWindowVideo()
     {
         try
         {
@@ -214,11 +214,11 @@ public sealed class VideoTargetFinder : IDisposable
         }
     }
 
-    private string GetWindowTitle(IntPtr hwnd)
+    private static string GetWindowTitle(IntPtr hwnd)
     {
-        var sb = new System.Text.StringBuilder(256);
-        GetWindowText(hwnd, sb, sb.Capacity);
-        return sb.ToString();
+        var buffer = new char[256];
+        var length = GetWindowText(hwnd, buffer, buffer.Length);
+        return new string(buffer, 0, length);
     }
 
     private static bool IsVideoPlayerWindow(string title)
@@ -279,8 +279,8 @@ public sealed class VideoTargetFinder : IDisposable
     [DllImport("user32.dll")]
     private static extern bool IsWindow(IntPtr hWnd);
 
-    [DllImport("user32.dll", CharSet = CharSet.Auto)]
-    private static extern int GetWindowText(IntPtr hWnd, System.Text.StringBuilder lpString, int nMaxCount);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern int GetWindowText(IntPtr hWnd, [Out] char[] lpString, int nMaxCount);
 
     [DllImport("user32.dll")]
     private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);

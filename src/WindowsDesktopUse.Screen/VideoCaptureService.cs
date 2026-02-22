@@ -26,7 +26,7 @@ public sealed class VideoCaptureService : IDisposable
     /// <summary>
     /// Start video capture session
     /// </summary>
-    public async Task<string> StartVideoStreamAsync(
+    public Task<string> StartVideoStreamAsync(
         string targetName,
         int fps = 10,
         int quality = 65,
@@ -78,7 +78,7 @@ public sealed class VideoCaptureService : IDisposable
         _ = Task.Run(() => CaptureLoopAsync(session), cancellationToken);
 
         Console.Error.WriteLine($"[VideoCapture] Video stream started: {sessionId}");
-        return sessionId;
+        return Task.FromResult(sessionId);
     }
 
     /// <summary>
@@ -334,7 +334,7 @@ public sealed class VideoCaptureService : IDisposable
         }
     }
 
-    private string EncodeToJpeg(Bitmap frame, int quality)
+    private static string EncodeToJpeg(Bitmap frame, int quality)
     {
         using var ms = new MemoryStream();
         
@@ -347,13 +347,13 @@ public sealed class VideoCaptureService : IDisposable
         return Convert.ToBase64String(ms.ToArray());
     }
 
-    private VideoPayload CreateVideoPayload(VideoSession session, string imageData, double ts, string eventTag)
+    private static VideoPayload CreateVideoPayload(VideoSession session, string imageData, double ts, string eventTag)
     {
         var now = DateTime.UtcNow;
         var target = session.TargetInfo;
 
         return new VideoPayload(
-            Timestamp: TimeSpan.FromSeconds(ts).ToString(@"hh\:mm\:ss\.f"),
+            Timestamp: TimeSpan.FromSeconds(ts).ToString(@"hh\:mm\:ss\.f", System.Globalization.CultureInfo.InvariantCulture),
             SystemTime: now.ToString("O"),
             WindowInfo: new VideoWindowInfo(
                 Title: target.WindowTitle,

@@ -13,18 +13,18 @@ Thank you for your interest in contributing to MCP Windows Screen Capture Server
 ### Getting Started
 
 1. Fork the repository
-2. Clone your fork: `git clone https://github.com/YOUR_USERNAME/mcp-windows-screen-capture.git`
-3. Navigate to the project: `cd mcp-windows-screen-capture`
+2. Clone your fork: `git clone https://github.com/YOUR_USERNAME/windows-desktop-use-mcp.git`
+3. Navigate to the project: `cd windows-desktop-use-mcp`
 4. Create a new branch: `git checkout -b your-feature-branch`
 
 ### Building
 
 ```bash
-# Build in Release mode
-dotnet build src/WindowsScreenCaptureServer.csproj -c Release
+# Build the entire solution
+dotnet build WindowsDesktopUse.sln -c Release
 
-# Build in Debug mode
-dotnet build src/WindowsScreenCaptureServer.csproj -c Debug
+# Build specific project
+dotnet build src/WindowsDesktopUse.App/WindowsDesktopUse.App.csproj -c Release
 ```
 
 ### Testing
@@ -98,21 +98,23 @@ Brief description of changes
 ## Project Structure
 
 ```
-mcp-windows-screen-capture/
+windows-desktop-use-mcp/
 ├── src/
-│   ├── Program.cs                      # Entry point
-│   ├── WindowsScreenCaptureServer.csproj
-│   ├── ScreenCaptureService.cs          # Screen capture logic
-│   ├── Tools/
-│   │   └── ScreenCaptureTools.cs     # MCP tool definitions
-│   └── bin/Release/...              # Compiled output
+│   ├── WindowsDesktopUse.App/          # Main application (EXE)
+│   │   ├── Program.cs                  # Entry point
+│   │   ├── DesktopUseTools.cs          # MCP tool definitions
+│   │   └── ...
+│   ├── WindowsDesktopUse.Core/         # Common data models
+│   ├── WindowsDesktopUse.Screen/       # Screen capture (GDI+/DirectX)
+│   ├── WindowsDesktopUse.Audio/        # Audio recording (WASAPI)
+│   ├── WindowsDesktopUse.Transcription/ # Whisper transcription
+│   └── WindowsDesktopUse.Input/        # Mouse/keyboard input
 ├── tests/
-│   └── E2ETests/
-│       ├── McpE2ETests.cs            # E2E tests
-│       └── TestHelper.cs              # Test utilities
-├── docs/                             # Documentation
-├── .github/workflows/                 # CI/CD
-└── README.md                          # Project README
+│   ├── E2ETests/                      # Integration tests
+│   └── UnitTests/                     # Unit tests
+├── docs/                              # Documentation
+├── .github/workflows/                  # CI/CD
+└── README.md                           # Project README
 ```
 
 ## Issue Reporting

@@ -50,11 +50,11 @@ public class WhisperTranscriptionService : IDisposable
 
         if (File.Exists(modelPath))
         {
-            Console.WriteLine($"[Whisper] Model already exists: {modelPath}");
+            Console.Error.WriteLine($"[Whisper] Model already exists: {modelPath}");
             return;
         }
 
-        Console.WriteLine($"[Whisper] Downloading model: {size}...");
+        Console.Error.WriteLine($"[Whisper] Downloading model: {size}...");
 
         var ggmlType = size switch
         {
@@ -74,7 +74,7 @@ public class WhisperTranscriptionService : IDisposable
             using var fileWriter = File.OpenWrite(modelPath);
             await modelStream.CopyToAsync(fileWriter, ct).ConfigureAwait(false);
 
-            Console.WriteLine($"[Whisper] Model downloaded successfully: {modelPath}");
+            Console.Error.WriteLine($"[Whisper] Model downloaded successfully: {modelPath}");
         }
         catch (Exception ex)
         {
@@ -99,7 +99,7 @@ public class WhisperTranscriptionService : IDisposable
         _whisperFactory = WhisperFactory.FromPath(modelPath);
         _loadedModelSize = size;
 
-        Console.WriteLine($"[Whisper] Model loaded: {size}");
+        Console.Error.WriteLine($"[Whisper] Model loaded: {size}");
     }
 
     /// <summary>

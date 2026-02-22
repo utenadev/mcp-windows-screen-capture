@@ -223,7 +223,7 @@ public class ScreenCaptureService
     [DllImport("user32.dll", CharSet = CharSet.Auto)] static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFOEX lpmi);
     [DllImport("user32.dll")] static extern bool EnumWindows(EnumWindowsDelegate lpEnumFunc, IntPtr lParam);
     [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr hWnd);
-    [DllImport("user32.dll", CharSet = CharSet.Auto)] static extern int GetWindowText(IntPtr hWnd, System.Text.StringBuilder lpString, int nMaxCount);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)] static extern int GetWindowText(IntPtr hWnd, [Out] char[] lpString, int nMaxCount);
     [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
     [DllImport("user32.dll")] static extern bool PrintWindow(IntPtr hwnd, IntPtr hdcBlt, uint nFlags);
 
@@ -252,9 +252,9 @@ public class ScreenCaptureService
             EnumWindows((hwnd, param) =>
             {
                 if (!IsWindowVisible(hwnd)) return true;
-                var sb = new System.Text.StringBuilder(256);
-                _ = GetWindowText(hwnd, sb, 256);
-                var title = sb.ToString();
+                var buffer = new char[256];
+                var length = GetWindowText(hwnd, buffer, 256);
+                var title = new string(buffer, 0, length);
                 if (string.IsNullOrWhiteSpace(title)) return true;
 
                 GetWindowRect(hwnd, out var rect);
