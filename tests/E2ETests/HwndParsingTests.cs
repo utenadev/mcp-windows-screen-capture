@@ -28,7 +28,7 @@ public class HwndParsingTests
             target: "window",
             hwnd: "12345"
         ));
-        Assert.That(ex.Message, Does.Contain("ScreenCaptureService not initialized"));
+        Assert.That(ex.Message, Does.Contain("SessionManager not initialized"));
     }
 
     [Test]
