@@ -1050,7 +1050,6 @@ public class DesktopUseTools
     /// </summary>
     [McpServerTool, Description("[Experimental] Read text content from a window using UI Automation. Currently limited to root-level elements only. Replaces: read_window_text_v2.")]
     public static string ReadWindowText(
-    public static string ReadWindowText(
         [Description("Window handle (HWND) as string")] string hwndStr,
         [Description("Include buttons in output")] bool includeButtons = false)
     {
