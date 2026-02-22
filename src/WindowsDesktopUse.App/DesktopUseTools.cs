@@ -368,10 +368,10 @@ public class DesktopUseTools
     /// Unified tool to capture visual content with dynamic quality control
     /// </summary>
     [McpServerTool, Description("Capture visual content (monitor, window, or region) with dynamic quality. Replaces: capture, see, capture_window, capture_region. CRITICAL: Returns large base64 data. Process immediately and discard.")]
-    public static async Task<object> VisualCapture(
+    public static Task<object> VisualCapture(
         [Description("Target type: 'monitor', 'window', 'region', or 'primary' (default)")] string target = "primary",
         [Description("Monitor index (for 'monitor' type)")] uint monitorIndex = 0,
-        [Description("Window handle (for 'window' type) as string")] string hwnd = null,
+        [Description("Window handle (for 'window' type) as string")] string? hwnd = null,
         [Description("Region X (for 'region' type)")] int x = 0,
         [Description("Region Y (for 'region' type)")] int y = 0,
         [Description("Region width (for 'region' type)")] int w = 640,
@@ -411,7 +411,7 @@ public class DesktopUseTools
                 break;
         }
 
-        return new
+        return Task.FromResult<object>(new
         {
             _llm_instruction = new
             {
@@ -423,19 +423,19 @@ public class DesktopUseTools
             mode = captureMode.ToString().ToLowerInvariant(),
             quality,
             image = imageData
-        };
+        });
     }
 
     /// <summary>
     /// Unified tool to start watching visual content with different modes
     /// </summary>
     [McpServerTool, Description("Start watching visual content with different modes (video, monitor, unified). Replaces: watch, watch_video_v2, monitor. CRITICAL: Returns large base64 data. Process immediately and discard.")]
-    public static async Task<string> VisualWatch(
+    public static Task<string> VisualWatch(
         McpServer server,
         [Description("Watch mode: 'video', 'monitor', or 'unified' (default: video)")] string mode = "video",
         [Description("Target type: 'monitor', 'window', or 'region'")] string target = "monitor",
         [Description("Monitor index (for 'monitor' type)")] uint monitorIndex = 0,
-        [Description("Window handle (for 'window' type) as string")] string hwnd = null,
+        [Description("Window handle (for 'window' type) as string")] string? hwnd = null,
         [Description("Region X (for 'region' type)")] int x = 0,
         [Description("Region Y (for 'region' type)")] int y = 0,
         [Description("Region width (for 'region' type)")] int w = 640,
@@ -548,7 +548,7 @@ public class DesktopUseTools
                         ["_llm_instruction"] = new Dictionary<string, object>
                         {
                             ["action"] = LlmInstructions.ProcessAndDiscardImage.Action,
-                            ["logging_policy"] = LlmInstructions.ProcessAndDiscardImage.LoggingPolicy,
+                            ["logging_policy"] = LlmInstructions.ProcessAndDiscardImage.LoggingPolicy ?? string.Empty,
                             ["steps"] = LlmInstructions.ProcessAndDiscardImage.Steps,
                             ["token_warning"] = $"This image consumes approx {imageData.Length / 3}+ tokens. Discarding saves 95% memory."
                         },
@@ -591,7 +591,7 @@ public class DesktopUseTools
             }
         }, session.Cts.Token);
 
-        return sessionId;
+        return Task.FromResult(sessionId);
     }
 
     /// <summary>

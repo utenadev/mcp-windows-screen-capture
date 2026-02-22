@@ -156,7 +156,7 @@ doctorCmd.SetHandler((bool verbose, bool json) =>
                 ["message"] = GetText("Screen capture test failed", "画面キャプチャテスト失敗"),
                 ["error"] = ex.Message
             };
-            if (verbose) monitorCheck["stackTrace"] = ex.StackTrace;
+            if (verbose) monitorCheck["stackTrace"] = ex.StackTrace ?? string.Empty;
             ((List<Dictionary<string, object>>)result["checks"]).Add(monitorCheck);
             hasError = true;
         }
@@ -186,7 +186,7 @@ doctorCmd.SetHandler((bool verbose, bool json) =>
                 audioCheck["note"] = GetText("This may require administrator privileges", "これは管理者権限が必要な可能性があります");
                 audioCheck["suggestion"] = GetText("Run as administrator", "管理者として実行してください");
             }
-            if (verbose) audioCheck["stackTrace"] = ex.StackTrace;
+            if (verbose) audioCheck["stackTrace"] = ex.StackTrace ?? string.Empty;
             ((List<Dictionary<string, object>>)result["checks"]).Add(audioCheck);
             hasWarning = true;
         }
@@ -230,7 +230,7 @@ doctorCmd.SetHandler((bool verbose, bool json) =>
                 ["message"] = GetText("Whisper check failed", "Whisperチェック失敗"),
                 ["error"] = ex.Message
             };
-            if (verbose) whisperCheck["stackTrace"] = ex.StackTrace;
+            if (verbose) whisperCheck["stackTrace"] = ex.StackTrace ?? string.Empty;
             ((List<Dictionary<string, object>>)result["checks"]).Add(whisperCheck);
             hasWarning = true;
         }

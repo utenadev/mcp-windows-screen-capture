@@ -331,10 +331,19 @@ public class MonitorSession : IDisposable
 
     public void Dispose()
     {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
         if (!_disposed)
         {
-            Cts.Cancel();
-            Cts.Dispose();
+            if (disposing)
+            {
+                Cts.Cancel();
+                Cts.Dispose();
+            }
             _disposed = true;
         }
     }
@@ -399,11 +408,21 @@ public class VideoCoViewSession : IDisposable
 
     public void Dispose()
     {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
         if (!_disposed)
         {
-            Cts.Cancel();
-            Cts.Dispose();
+            if (disposing)
+            {
+                Cts.Cancel();
+                Cts.Dispose();
+            }
             _disposed = true;
         }
     }
 }
+
